@@ -1,0 +1,203 @@
+/* =============================================================
+ * 08-clients.css — Clients Directory: Bento Grid & Profile Panel
+ * IndFlow Design System
+ * ============================================================= */
+
+/* ── Clients Bento Grid ── */
+.clients-bento-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.client-bento-card {
+  background-color: white;
+  background-image: radial-gradient(rgba(26,26,26,0.05) 1.2px, transparent 1.2px);
+  background-size: 10px 10px;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  height: auto;
+}
+
+.client-bento-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--text-placeholder);
+  background-image: radial-gradient(rgba(110,89,219,0.08) 1.2px, transparent 1.2px);
+}
+
+/* ── Card Header ── */
+.card-top-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.client-avatar-large {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background-color: var(--accent-purple-light);
+  color: var(--accent-purple);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  font-weight: 500;
+}
+
+.card-action-icons { display: flex; gap: 8px; }
+
+.card-action-icons button {
+  background: none;
+  border: none;
+  color: var(--text-placeholder);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: var(--transition-fast);
+}
+
+.card-action-icons button:hover { color: var(--text-main); background-color: var(--bg-sidebar); }
+.card-action-icons button.delete-icon-btn:hover { color: #D32F2F; background-color: #FFF0F0; }
+
+/* ── Identity Info ── */
+.client-identity-info  { display: flex; flex-direction: column; gap: 4px; }
+.client-display-name   { font-size: 1.15rem; font-weight: 500; color: var(--text-main); letter-spacing: -0.02em; }
+.client-date-added     { font-size: 0.75rem; color: var(--text-placeholder); font-weight: 450; }
+
+/* ── Card Footer Strip ── */
+.client-card-footer-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px dashed var(--border-color);
+  padding-top: 10px;
+  margin-top: 2px;
+}
+
+.client-card-small-stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.stat-value    { white-space: nowrap; }
+.stat-separator { color: var(--text-placeholder); font-size: 0.8rem; }
+
+.client-card-small-stats .text-green {
+  color: #0E4F2F;
+  background-color: #E2F5EC;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+/* ── Social Mini Dots ── */
+.client-socials-mini-row { display: flex; gap: 4px; }
+
+.social-mini-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px; height: 18px;
+  border-radius: 4px;
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background-color: white;
+  border: 1px solid var(--border-color);
+  transition: var(--transition-fast);
+}
+
+.social-mini-dot.linkedin { color: #0077B5; border-color: #B2D8EE; background-color: #F4FAFD; }
+.social-mini-dot.twitter  { color: #1A1A1A; border-color: #D1D1D1; background-color: #FAFAFA; }
+.social-mini-dot.github   { color: #24292E; border-color: #D1D1D1; background-color: #FAFAFA; }
+.social-mini-dot.website  { color: var(--accent-purple); border-color: #D1C9F5; background-color: #F3F1FD; }
+
+/* ── Contact Strip (in slide-over) ── */
+.client-contact-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  padding: 12px 0;
+}
+
+.contact-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.contact-detail-row.text-placeholder { color: var(--text-placeholder); font-weight: 450; }
+.contact-label { color: var(--text-muted); font-size: 0.95rem; width: 16px; text-align: center; }
+.contact-val   { flex: 1; }
+
+.copy-text-btn { background: none; border: none; color: var(--text-placeholder); cursor: pointer; padding: 2px; display: flex; align-items: center; }
+.copy-text-btn:hover { color: var(--text-main); }
+
+/* ── Social Badge Icons ── */
+.client-socials-row  { display: flex; gap: 8px; align-items: center; }
+
+.social-badge-icon {
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-decoration: none;
+  color: var(--text-muted);
+  transition: var(--transition-fast);
+}
+
+.social-badge-icon:hover { background-color: var(--bg-sidebar); color: var(--text-main); border-color: var(--text-placeholder); }
+.no-socials-muted { font-size: 0.75rem; color: var(--text-placeholder); font-weight: 450; }
+
+/* ── Financial Meta ── */
+.client-financial-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.meta-stat-pill {
+  background-color: var(--bg-sidebar);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.meta-stat-val             { font-size: 0.9rem; font-weight: 500; color: var(--text-main); }
+.meta-stat-val.text-green  { color: #0E4F2F; }
+.meta-stat-label           { font-size: 0.68rem; font-weight: 450; text-transform: uppercase; color: var(--text-placeholder); }
+
+.view-client-profile-btn {
+  background-color: var(--btn-primary);
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: center;
+  transition: var(--transition-smooth);
+}
+
+.view-client-profile-btn:hover { background-color: var(--btn-primary-hover); }

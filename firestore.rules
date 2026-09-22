@@ -1,0 +1,241 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model for FinTask
+// ===============================================================
+//
+// Collection: clients
+// Document ID: auto / cli_*
+// Fields:
+//   - id: string (required)
+//   - name: string (required, 1-100 chars)
+//   - email: string (optional, valid email format)
+//   - phone: string (optional)
+//   - address: string (optional)
+//   - notes: string (optional)
+//   - social_links: map (optional)
+//   - created_at: string (required)
+//   - updated_at: string (optional)
+//
+// Collection: projects
+// Document ID: auto / proj_*
+// Fields:
+//   - id: string (required)
+//   - name: string (required, 1-150 chars)
+//   - description: string (optional)
+//   - category: string (required)
+//   - client_id: string (required)
+//   - price_dzd: number (required, >= 0)
+//   - status: string (required, enum: 'Planned' | 'In Progress' | 'Waiting Client' | 'Completed' | 'Cancelled')
+//   - progress_percentage: number (required, 0-100)
+//   - start_date: string (optional)
+//   - end_date: string (optional)
+//   - created_at: string (required)
+//
+// Collection: expenses
+// Document ID: auto / exp_*
+// Fields:
+//   - id: string (required)
+//   - amount: number (required, >= 0)
+//   - category: string (required)
+//   - description: string (optional)
+//   - project_id: string (optional)
+//   - expense_date: string (required)
+//   - created_at: string (required)
+//
+// Collection: invoices
+// Document ID: auto / inv_*
+// Fields:
+//   - id: string (required)
+//   - invoice_number: string (required)
+//   - invoice_type: string (required, 'proforma' | 'final')
+//   - client_id: string (required)
+//   - project_id: string (required)
+//   - invoice_date: string (required)
+//   - total_amount: number (required, >= 0)
+//   - payment_method: string (required)
+//   - status: string (required, 'draft' | 'sent' | 'paid' | 'overdue')
+//   - line_items: list (required)
+//   - created_at: string (required)
+//
+// Collection: tasks
+// Document ID: auto / tsk_*
+// Fields:
+//   - id: string (required)
+//   - project_id: string (required)
+//   - name: string (required, 1-200 chars)
+//   - status: string (required, 'Next up' | 'In Progress' | 'Complete')
+//   - due_date: string (optional)
+//   - labels: list (optional)
+//   - assignees: list (optional)
+//   - comments: list (optional)
+//   - created_at: string (required)
+//
+// Collection: payments
+// Document ID: auto / pay_*
+// Fields:
+//   - id: string (required)
+//   - project_id: string (required)
+//   - client_id: string (required)
+//   - amount: number (required, >= 0)
+//   - payment_type: string (required)
+//   - payment_method: string (required)
+//   - payment_date: string (required)
+//   - created_at: string (required)
+//
+// Collection: activities
+// Document ID: auto / act_*
+// Fields:
+//   - id: string (required)
+//   - text: string (required)
+//   - text_ar: string (required)
+//   - type: string (required, 'project' | 'payment' | 'expense' | 'client')
+//   - timestamp: string (required)
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidClient(data) {
+      return hasRequiredFields(['id', 'name', 'created_at']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100;
+    }
+
+    function isValidProject(data) {
+      return hasRequiredFields(['id', 'name', 'category', 'client_id', 'price_dzd', 'status', 'progress_percentage']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 150 &&
+             data.price_dzd is number && data.price_dzd >= 0 &&
+             data.progress_percentage is number && data.progress_percentage >= 0 && data.progress_percentage <= 100 &&
+             data.status in ['Planned', 'In Progress', 'Waiting Client', 'Completed', 'Cancelled'];
+    }
+
+    function isValidExpense(data) {
+      return hasRequiredFields(['id', 'amount', 'category', 'expense_date']) &&
+             data.amount is number && data.amount >= 0 &&
+             data.category is string && data.category.size() <= 80;
+    }
+
+    function isValidInvoice(data) {
+      return hasRequiredFields(['id', 'invoice_number', 'invoice_type', 'client_id', 'total_amount', 'status']) &&
+             data.total_amount is number && data.total_amount >= 0 &&
+             data.invoice_type in ['proforma', 'final'] &&
+             data.status in ['draft', 'sent', 'paid', 'overdue'];
+    }
+
+    function isValidTask(data) {
+      return hasRequiredFields(['id', 'project_id', 'name', 'status']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+             data.status in ['Next up', 'In Progress', 'Complete'];
+    }
+
+    function isValidPayment(data) {
+      return hasRequiredFields(['id', 'project_id', 'client_id', 'amount']) &&
+             data.amount is number && data.amount >= 0;
+    }
+
+    function isValidActivity(data) {
+      return hasRequiredFields(['id', 'text', 'type']) &&
+             data.type in ['project', 'payment', 'expense', 'client'];
+    }
+
+    // ===============================================================
+    // Rules for Collections
+    // ===============================================================
+
+    // Clients collection
+    match /clients/{clientId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidClient(request.resource.data);
+      allow update: if isAuthenticated() && isValidClient(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+
+    // Projects collection
+    match /projects/{projectId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidProject(request.resource.data);
+      allow update: if isAuthenticated() && isValidProject(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+
+    // Expenses collection
+    match /expenses/{expenseId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidExpense(request.resource.data);
+      allow update: if isAuthenticated() && isValidExpense(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+
+    // Invoices collection
+    match /invoices/{invoiceId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidInvoice(request.resource.data);
+      allow update: if isAuthenticated() && isValidInvoice(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+
+    // Tasks collection
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidTask(request.resource.data);
+      allow update: if isAuthenticated() && isValidTask(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+
+    // Payments collection
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidPayment(request.resource.data);
+      allow update: if isAuthenticated() && isValidPayment(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+
+    // Activities collection
+    match /activities/{activityId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidActivity(request.resource.data);
+      allow update: if isAuthenticated() && isValidActivity(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+
+    // Milestones collection
+    match /milestones/{milestoneId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && hasRequiredFields(['id', 'project_id', 'title', 'date']);
+      allow delete: if isAuthenticated();
+    }
+
+    // Contracts collection
+    match /contracts/{contractId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && hasRequiredFields(['id', 'title', 'project_id']);
+      allow delete: if isAuthenticated();
+    }
+
+    // Users collection (User Data Separation: users can only read/write their own profile)
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || resource.data.uid == request.auth.uid);
+      allow create, update: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Default deny for anything not explicitly matched
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

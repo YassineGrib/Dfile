@@ -1,0 +1,60 @@
+/* =============================================================
+ * 12-contracts.css — Contract Editor, Invoices, Print Overrides
+ * IndFlow Design System
+ * ============================================================= */
+
+/* ── Contract Document Viewer ── */
+.printable-contract-document-wrapper {
+  background-color: #f5f5f7;
+  padding: 32px 16px;
+  border-radius: var(--radius-lg);
+  border: 1.5px solid var(--border-color);
+  max-height: 700px;
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+}
+
+.printable-contract-document {
+  background: white;
+  width: 100%;
+  max-width: 800px;
+  min-height: 800px;
+  padding: 48px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 4px;
+}
+
+/* ── Contract Raw Text Editor ── */
+.contract-textarea-editor {
+  width: 100%;
+  height: 600px;
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  border: 1.5px dashed var(--border-color) !important;
+  border-radius: 6px;
+  background-color: var(--bg-sidebar);
+  outline: none;
+  color: var(--text-main);
+  resize: vertical;
+}
+
+/* ── @media print — Physical print overrides ── */
+@media print {
+  body * { visibility: hidden; }
+
+  .printable-contract-document,
+  .printable-contract-document * { visibility: visible; }
+
+  .printable-contract-document {
+    position: absolute;
+    left: 0; top: 0;
+    width: 100%;
+    margin: 0; padding: 0;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}

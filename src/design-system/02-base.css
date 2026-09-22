@@ -1,0 +1,90 @@
+/* =============================================================
+ * 02-base.css — Global Resets, Typography, HTML/Body
+ * IndFlow Design System
+ * ============================================================= */
+
+/* ── Universal Reset ── */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Root & Body ── */
+body {
+  background-color: var(--bg-canvas);
+  color: var(--text-main);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body.fintask-auth-body {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  width: 100%;
+}
+
+/* ── Language-aware Typography ── */
+html {
+  text-rendering: optimizeLegibility;
+}
+
+html[lang="ar"] {
+  font-family: var(--font-ar);
+  letter-spacing: 0;
+}
+
+html[lang="en"] {
+  font-family: var(--font-sans);
+  letter-spacing: -0.012em;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+/* ── Display Headings & Numbers Refinement ── */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.015em;
+}
+
+h1 {
+  font-weight: var(--weight-heavy);
+  letter-spacing: -0.02em;
+}
+
+b, strong, th {
+  font-weight: var(--weight-semibold);
+}
+
+.project-title-heading,
+.preview-headline,
+.sidebar-card-title,
+.proj-card-title,
+.month-grid-title,
+.calendar-date-header {
+  letter-spacing: -0.02em;
+}
+
+/* Modern Tabular Figures for Financials, Metrics & Dates */
+.kpi-card-metric,
+.metric-value-huge,
+.card-task-title,
+.detail-value,
+.font-mono {
+  font-feature-settings: "tnum" 1;
+}
+
+/* ── Utility Colour & Weight Helpers ── */
+.font-bold  { font-weight: var(--weight-semibold); }
+.text-green { color: #0E4F2F; }
+.text-red   { color: #D32F2F; }
+.text-bold  { font-weight: var(--weight-bold); }
+.select-all { user-select: all; }

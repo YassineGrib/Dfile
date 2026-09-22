@@ -1,0 +1,106 @@
+/* =============================================================
+ * 03-layout.css — App-level Layout: Auth Grid & Workspace
+ * IndFlow Design System
+ * ============================================================= */
+
+/* ── Floating Language Switcher ── */
+.lang-switcher-container {
+  position: absolute;
+  top: 24px;
+  z-index: 100;
+}
+
+html[dir="rtl"] .lang-switcher-container { left:  24px; }
+html[dir="ltr"] .lang-switcher-container { right: 24px; }
+
+.lang-toggle-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-main);
+  transition: var(--transition-smooth);
+}
+
+.lang-toggle-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--text-muted);
+}
+
+.lang-indicator {
+  width: 6px;
+  height: 6px;
+  background-color: var(--accent-orange);
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* ── Auth Screen Layout ── */
+.auth-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  min-height: 100dvh;
+}
+
+.auth-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1024px) {
+  .auth-grid { grid-template-columns: 46% 54%; }
+}
+
+@media (min-width: 1440px) {
+  .auth-grid { grid-template-columns: 44% 56%; }
+}
+
+/* ── Workspace App Layout ── */
+.workspace-layout {
+  display: flex;
+  min-height: 100dvh;
+  width: 100%;
+}
+
+html[dir="rtl"] .workspace-layout {
+  flex-direction: row-reverse;
+}
+
+.workspace-main-panel {
+  flex: 1;
+  background-color: var(--bg-canvas);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  position: relative;
+}
+
+.workspace-utility-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 32px;
+  background-color: transparent;
+}
+
+html[dir="rtl"] .workspace-utility-bar {
+  justify-content: flex-start;
+}
+
+/* ── Content Area ── */
+.dashboard-content-area {
+  padding: 28px 32px 32px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}

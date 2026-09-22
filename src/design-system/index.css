@@ -1,0 +1,24 @@
+/* =============================================================
+ * IndFlow Design System — Master Entry Point
+ * src/design-system/index.css
+ *
+ * Import order matters: tokens must come first so all other
+ * files can reference the CSS custom properties.
+ * ============================================================= */
+
+@import './01-tokens.css';      /* CSS Variables & Design Tokens   */
+@import './02-base.css';        /* Resets, Typography, Body        */
+@import './03-layout.css';      /* App Shell: Auth Grid, Workspace */
+@import './04-auth.css';        /* Authentication Pages            */
+@import './05-sidebar.css';     /* Sidebar Navigation & Tree       */
+@import './06-components.css';  /* Buttons, Modals, Slide-overs,   */
+                                /*   Toasts, Tables, Toolbar       */
+@import './07-dashboard.css';   /* KPI Cards, Charts, Activity     */
+@import './08-clients.css';     /* Clients Bento Grid              */
+@import './09-projects.css';    /* Kanban, Gantt, Task Cards       */
+@import './10-calendar.css';    /* Calendar Views & Milestones     */
+@import './11-forms.css';       /* Modal Form Elements             */
+@import './12-contracts.css';   /* Contract Editor & Print         */
+@import './13-animations.css';  /* @keyframes & Utility Classes    */
+@import './14-payments.css';    /* Payments Ledger, Inflow & Receipts */
+

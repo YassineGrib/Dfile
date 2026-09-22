@@ -1,0 +1,86 @@
+/* =============================================================
+ * 11-forms.css — Form Groups, Ranges, Modal Form Elements
+ * IndFlow Design System
+ * ============================================================= */
+
+/* ── Generic Form Groups ── */
+.form-group-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group-item label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-placeholder);
+  text-transform: uppercase;
+}
+
+/* ── Shared Form Inputs (Milestone & Slide-over) ── */
+.milestone-form-select,
+.milestone-form-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-main);
+  outline: none;
+  background-color: white;
+}
+
+.milestone-form-select:focus,
+.milestone-form-input:focus { border-color: var(--text-placeholder); }
+
+/* Textarea variant */
+.milestone-form-input[type="textarea"],
+textarea.milestone-form-input {
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5;
+}
+
+/* ── Range Slider ── */
+.range-slider-row { display: flex; align-items: center; gap: 12px; }
+.slider-range     { flex: 1; accent-color: var(--accent-purple); }
+.slider-value-text { font-size: 0.9rem; font-weight: 500; color: var(--accent-purple); }
+
+/* ── Date Row ── */
+.modal-dates-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ── Quick Input Rows (modals) ── */
+.quick-client-add-row,
+.task-input-row { display: flex; gap: 8px; }
+
+/* ── Task Preview (Modal Step 2) ── */
+.tasks-preview-list {
+  background-color: var(--bg-sidebar);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  max-height: 120px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.no-tasks-text { font-size: 0.8rem; color: var(--text-placeholder); text-align: center; }
+
+.task-preview-item {
+  display: flex;
+  align-items: center;
+  background: white;
+  border: 1px solid var(--border-color);
+  padding: 6px 10px;
+  border-radius: 4px;
+  gap: 8px;
+}
+
+.task-num-label   { font-size: 0.72rem; font-weight: 500; color: var(--accent-purple); }
+.task-preview-name { font-size: 0.8rem; font-weight: 500; color: var(--text-main); flex: 1; }
+
+.task-remove-btn { background: none; border: none; color: var(--text-placeholder); cursor: pointer; padding: 2px; font-size: 0.8rem; }
+.task-remove-btn:hover { color: #D32F2F; }

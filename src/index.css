@@ -1,0 +1,23 @@
+/* =============================================================
+ * src/index.css — IndFlow App Stylesheet Entry
+ *
+ * All styles have been organized into the design system.
+ * This file now simply re-exports the entire design system.
+ *
+ * To edit styles, go to: src/design-system/
+ *   01-tokens.css      — CSS Variables & Design Tokens
+ *   02-base.css        — Resets, Typography, Body
+ *   03-layout.css      — App Shell: Auth Grid, Workspace
+ *   04-auth.css        — Authentication Pages
+ *   05-sidebar.css     — Sidebar Navigation & Tree
+ *   06-components.css  — Buttons, Modals, Slide-overs, Tables
+ *   07-dashboard.css   — KPI Cards, Charts, Activity Feed
+ *   08-clients.css     — Clients Bento Grid
+ *   09-projects.css    — Kanban, Gantt, Task Cards
+ *   10-calendar.css    — Calendar Views & Milestones
+ *   11-forms.css       — Modal Form Elements
+ *   12-contracts.css   — Contract Editor & Print
+ *   13-animations.css  — @keyframes & Utilities
+ * ============================================================= */
+
+@import './design-system/index.css';

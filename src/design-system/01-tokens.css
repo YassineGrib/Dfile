@@ -1,0 +1,58 @@
+/* =============================================================
+ * 01-tokens.css — Design Tokens & CSS Custom Properties
+ * IndFlow Design System
+ * ============================================================= */
+
+:root {
+  /* ── Background Surfaces ── */
+  --bg-canvas:   #FAF9F6;            /* Warm Paper off-white */
+  --bg-card:     #FFFFFF;
+  --bg-sidebar:  #F4F3F0;            /* Creamy warm sidebar */
+
+  /* ── Typography ── */
+  --text-main:        #1A1A1A;       /* Off-black deep charcoal */
+  --text-muted:       #666666;       /* Calm steel gray */
+  --text-placeholder: #B2B0A9;
+
+  /* ── Borders ── */
+  --border-color:       #E6E5E0;     /* Soft warm gray */
+  --border-color-focus: #8A5CF5;     /* Accent purple focus */
+
+  /* ── Brand Accents ── */
+  --accent-purple:       #8A5CF5;
+  --accent-purple-light: #F1EAFF;
+  --accent-orange:       #F05A28;
+  --accent-lime:         #E5FF60;    /* Highlight yellow-lime */
+
+  /* ── Buttons ── */
+  --btn-primary:       #0E4F2F;      /* Forest green */
+  --btn-primary-hover: #0A3C23;
+
+  /* ── Shadows ── */
+  --shadow-sm: 0 2px 5px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.03);
+  --shadow-md: 0 4px 14px rgba(0,0,0,0.03), 0 2px 6px rgba(0,0,0,0.03);
+  --shadow-lg: 0 20px 40px rgba(26,26,26,0.04), 0 4px 10px rgba(26,26,26,0.02);
+
+  /* ── Border Radius ── */
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   20px;
+  --radius-pill: 9999px;
+
+  /* ── Transitions ── */
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast:   all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Typography Families (Haute Tendance & Modern Arabic) ── */
+  --font-sans:    'Satoshi', 'Outfit', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: 'Cabinet Grotesk', 'Satoshi', 'Outfit', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-ar:      'Alexandria', 'Tajawal', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono:    'Geist Mono', 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* ── Ultra-Refined Font Weights (Sleek, Modern, Feather-Light, Never Chunky) ── */
+  --weight-regular:  400;
+  --weight-medium:   400;
+  --weight-semibold: 450;
+  --weight-bold:     450;
+  --weight-heavy:    450;
+}
