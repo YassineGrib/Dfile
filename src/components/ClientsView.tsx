@@ -460,11 +460,11 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                           </div>
                           <div className="proj-row-finances">
                             <span>{language === 'ar' ? 'الميزانية:' : 'Budget:'} {proj.price_dzd.toLocaleString()} DZ</span>
-                            <span>{proj.progress_percentage}% {language === 'ar' ? 'إنجاز' : 'Done'}</span>
+                            <span>{proj.status === 'Completed' || proj.status === 'Delivered' ? 100 : proj.progress_percentage}% {language === 'ar' ? 'إنجاز' : 'Done'}</span>
                           </div>
                           {/* Progress bar fill */}
                           <div className="proj-row-progress-bar-bg">
-                            <div className="proj-row-progress-bar-fill" style={{ width: `${proj.progress_percentage}%` }}></div>
+                            <div className="proj-row-progress-bar-fill" style={{ width: `${proj.status === 'Completed' || proj.status === 'Delivered' ? 100 : proj.progress_percentage}%` }}></div>
                           </div>
                         </div>
                       ))

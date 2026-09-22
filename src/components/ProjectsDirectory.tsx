@@ -6,7 +6,7 @@ import {
   Search, Plus, Edit2, Trash2, Check, Archive,
   TrendingUp, Calendar, DollarSign, BarChart2,
   Clock, Tag, User, ChevronDown, Filter, Grid, List,
-  AlertCircle, CheckCircle, Pause, XCircle
+  AlertCircle, CheckCircle, CheckCheck, Pause, XCircle
 } from 'lucide-react';
 import { UserAvatar } from './UserAvatar';
 
@@ -27,6 +27,7 @@ const STATUS_CONFIG: Record<ProjectStatus, { label: string; labelAr: string; col
   'In Progress':    { label: 'In Progress',    labelAr: 'جارٍ التنفيذ', color: '#f97316', bg: '#FFF0E6', Icon: BarChart2 },
   'Waiting Client': { label: 'Waiting Client', labelAr: 'بانتظار العميل', color: '#eab308', bg: '#FEFCE8', Icon: Pause },
   'Completed':      { label: 'Completed',      labelAr: 'مكتمل',         color: '#22c55e', bg: '#ECFDF5', Icon: CheckCircle },
+  'Delivered':      { label: 'Delivered',      labelAr: 'تم التسليم',    color: '#0E4F2F', bg: '#E2F7EB', Icon: CheckCheck },
   'Cancelled':      { label: 'Cancelled',      labelAr: 'ملغى',          color: '#ef4444', bg: '#FEF2F2', Icon: XCircle },
 };
 
@@ -42,6 +43,19 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 function getCategoryColor(cat: string): string {
   return CATEGORY_COLORS[cat] || '#6b7280';
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  if (!hex || !hex.startsWith('#')) return hex;
+  let clean = hex.replace('#', '');
+  if (clean.length === 3) {
+    clean = clean.split('').map(c => c + c).join('');
+  }
+  const num = parseInt(clean, 16);
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
@@ -151,7 +165,7 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
   const totalPortfolio = projects.reduce((s, p) => s + p.price_dzd, 0);
   const totalCollected = payments.reduce((s, p) => s + p.amount, 0);
   const avgProgress = projects.length > 0
-    ? Math.round(projects.reduce((s, p) => s + p.progress_percentage, 0) / projects.length)
+    ? Math.round(projects.reduce((s, p) => s + (p.status === 'Completed' || p.status === 'Delivered' ? 100 : (p.progress_percentage || 0)), 0) / projects.length)
     : 0;
 
   /* ---------- handlers ---------- */
@@ -162,7 +176,7 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
     setEditCategory(project.category);
     setEditStatus(project.status);
     setEditBudget(String(project.price_dzd));
-    setEditProgress(String(project.progress_percentage));
+    setEditProgress(String(project.status === 'Completed' || project.status === 'Delivered' ? 100 : project.progress_percentage));
     setEditStartDate(project.start_date || '');
     setEditEndDate(project.end_date || '');
     setEditDescription(project.description || '');
@@ -172,13 +186,14 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProject) return;
+    const isFinished = editStatus === 'Completed' || editStatus === 'Delivered';
     const updated: Project = {
       ...editingProject,
       name: editName,
       category: editCategory,
       status: editStatus,
       price_dzd: parseFloat(editBudget) || 0,
-      progress_percentage: Math.min(100, Math.max(0, parseInt(editProgress) || 0)),
+      progress_percentage: isFinished ? 100 : Math.min(100, Math.max(0, parseInt(editProgress) || 0)),
       start_date: editStartDate || undefined,
       end_date: editEndDate || undefined,
       description: editDescription || undefined,
@@ -192,6 +207,7 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
 
   const handleAddProject = (e: React.FormEvent) => {
     e.preventDefault();
+    const isFinished = addStatus === 'Completed' || addStatus === 'Delivered';
     const newProject: Project = {
       id: 'proj_' + Math.random().toString(36).substr(2, 9),
       name: addName,
@@ -199,7 +215,7 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
       client_id: addClientId,
       price_dzd: parseFloat(addBudget) || 0,
       status: addStatus,
-      progress_percentage: parseInt(addProgress) || 0,
+      progress_percentage: isFinished ? 100 : (parseInt(addProgress) || 0),
       start_date: addStartDate || undefined,
       end_date: addEndDate || undefined,
       description: addDescription || undefined,
@@ -228,7 +244,11 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
     triggerToast(language === 'ar' ? 'تمت أرشفة المشروع' : 'Project archived.');
   };
 
-  const getDaysLeftLabel = (daysLeft: number | null) => {
+  const getDaysLeftLabel = (daysLeft: number | null, status?: ProjectStatus) => {
+    // Completed, Delivered, and Cancelled projects should NEVER show Overdue!
+    if (status === 'Completed' || status === 'Delivered' || status === 'Cancelled') {
+      return null;
+    }
     if (daysLeft === null) return null;
     if (daysLeft < 0) return { label: language === 'ar' ? 'تأخر' : 'Overdue', color: '#ef4444' };
     if (daysLeft === 0) return { label: language === 'ar' ? 'اليوم!' : 'Today!', color: '#f97316' };
@@ -305,7 +325,7 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
 
         {/* Status filter pills */}
         <div className="filter-pills-row">
-          {(['all', 'Planned', 'In Progress', 'Waiting Client', 'Completed', 'Cancelled'] as const).map(s => (
+          {(['all', 'Planned', 'In Progress', 'Waiting Client', 'Completed', 'Delivered', 'Cancelled'] as const).map(s => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
@@ -407,8 +427,15 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
             const cfg = STATUS_CONFIG[project.status];
             const StatusIcon = cfg.Icon;
             const catColor = getCategoryColor(project.category);
-            const daysTag = getDaysLeftLabel(stats.daysLeft);
+            const daysTag = getDaysLeftLabel(stats.daysLeft, project.status);
             const remaining = Math.max(0, project.price_dzd - stats.collected);
+            const isCompletedOrDelivered = project.status === 'Completed' || project.status === 'Delivered';
+            const statusColor = cfg ? cfg.color : '#6366f1';
+            const effectiveProgress = isCompletedOrDelivered
+              ? 100
+              : (stats.totalTasks > 0
+                  ? Math.round((stats.doneTasks / stats.totalTasks) * 100)
+                  : (project.progress_percentage || 0));
 
             return (
               <div
@@ -418,19 +445,41 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
                 style={{ 
                   cursor: 'pointer', 
                   position: 'relative', 
-                  overflow: 'visible',
+                  overflow: 'hidden',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  height: '100%'
+                  height: '100%',
+                  borderColor: isCompletedOrDelivered ? hexToRgba(statusColor, 0.3) : undefined,
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease'
                 }}
               >
-                {/* Top accent bar by category color */}
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: catColor, borderRadius: '12px 12px 0 0' }} />
+                {/* Subtle Water-level Progress Gradient Background */}
+                {effectiveProgress > 0 && (
+                  <div
+                    aria-hidden="true"
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      bottom: 0,
+                      insetInlineStart: 0,
+                      width: `${Math.min(100, Math.max(0, effectiveProgress))}%`,
+                      background: effectiveProgress >= 100
+                        ? `linear-gradient(135deg, ${hexToRgba(statusColor, 0.10)} 0%, ${hexToRgba(statusColor, 0.035)} 100%)`
+                        : `linear-gradient(to ${language === 'ar' ? 'left' : 'right'}, ${hexToRgba(statusColor, 0.10)} 0%, ${hexToRgba(statusColor, 0.045)} 80%, ${hexToRgba(statusColor, 0.015)} 100%)`,
+                      borderInlineEnd: effectiveProgress < 100 ? `1.5px solid ${hexToRgba(statusColor, 0.24)}` : 'none',
+                      boxShadow: effectiveProgress < 100 ? `inset -2px 0 8px -1px ${hexToRgba(statusColor, 0.10)}` : 'none',
+                      transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                      pointerEvents: 'none',
+                      zIndex: 0,
+                    }}
+                  />
+                )}
 
-                <div>
+                {/* Top Section */}
+                <div style={{ position: 'relative', zIndex: 1 }}>
                   {/* Card Top Row */}
-                  <div className="card-top-header" style={{ paddingTop: '12px' }}>
+                  <div className="card-top-header">
                     {/* Category tag + Status pill */}
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', flex: 1 }}>
                       <span style={{
@@ -501,16 +550,16 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
                   <div style={{ marginTop: '12px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '0.72rem', fontWeight: 450 }}>
                       <span style={{ color: 'var(--text-muted)' }}>{language === 'ar' ? 'التقدم' : 'Progress'}</span>
-                      <span style={{ color: project.progress_percentage >= 80 ? '#22c55e' : project.progress_percentage >= 40 ? '#f97316' : '#6b7280' }}>
-                        {project.progress_percentage}%
+                      <span style={{ color: project.status === 'Delivered' ? '#0E4F2F' : effectiveProgress >= 80 ? '#22c55e' : effectiveProgress >= 40 ? '#f97316' : '#6b7280' }}>
+                        {effectiveProgress}%
                       </span>
                     </div>
                     <div style={{ height: '6px', background: 'var(--border-color)', borderRadius: '99px', overflow: 'hidden' }}>
                       <div style={{
                         height: '100%',
-                        width: `${project.progress_percentage}%`,
+                        width: `${effectiveProgress}%`,
                         borderRadius: '99px',
-                        background: project.progress_percentage >= 80 ? '#22c55e' : project.progress_percentage >= 40 ? '#f97316' : '#6366f1',
+                        background: project.status === 'Delivered' ? '#0E4F2F' : effectiveProgress >= 80 ? '#22c55e' : effectiveProgress >= 40 ? '#f97316' : '#6366f1',
                         transition: 'width 0.4s ease'
                       }} />
                     </div>
@@ -518,7 +567,7 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
                 </div>
 
                 {/* Bottom Financial & Metadata Zone */}
-                <div>
+                <div style={{ position: 'relative', zIndex: 1 }}>
                   {/* 3 Equal-Sized Financial Metrics: Budget, Collected, Rest */}
                   <div style={{
                     display: 'grid',
@@ -618,15 +667,23 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
                 const StatusIcon = cfg.Icon;
                 const catColor = getCategoryColor(project.category);
                 const stats = getProjectStats(project.id);
-                const daysTag = getDaysLeftLabel(stats.daysLeft);
+                const daysTag = getDaysLeftLabel(stats.daysLeft, project.status);
                 const rowRest = Math.max(0, project.price_dzd - stats.collected);
+                const isCompletedOrDelivered = project.status === 'Completed' || project.status === 'Delivered';
+                const effectiveProgress = isCompletedOrDelivered 
+                  ? 100 
+                  : (stats.totalTasks > 0 ? Math.round((stats.doneTasks / stats.totalTasks) * 100) : (project.progress_percentage || 0));
 
                 return (
                   <tr
                     key={project.id}
                     onClick={() => setSelectedProject(project)}
-                    style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer', background: idx % 2 === 0 ? 'transparent' : 'var(--bg-sidebar)', transition: '0.1s' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-sidebar)')}
+                    style={{
+                      borderBottom: '1px solid var(--border-color)',
+                      cursor: 'pointer',
+                      transition: 'background 0.15s'
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-main)')}
                     onMouseLeave={e => (e.currentTarget.style.background = idx % 2 === 0 ? 'transparent' : 'var(--bg-sidebar)')}
                   >
                     <td style={{ padding: '12px 14px' }}>
@@ -661,9 +718,9 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
                     <td style={{ padding: '12px 14px', minWidth: '120px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <div style={{ flex: 1, height: '5px', background: 'var(--border-color)', borderRadius: '99px', overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${project.progress_percentage}%`, background: project.progress_percentage >= 80 ? '#22c55e' : '#f97316', borderRadius: '99px' }} />
+                          <div style={{ height: '100%', width: `${effectiveProgress}%`, background: project.status === 'Delivered' ? '#0E4F2F' : effectiveProgress >= 80 ? '#22c55e' : '#f97316', borderRadius: '99px' }} />
                         </div>
-                        <span style={{ fontSize: '0.72rem', fontWeight: 500, width: '32px', textAlign: 'right' }}>{project.progress_percentage}%</span>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 500, width: '32px', textAlign: 'right' }}>{effectiveProgress}%</span>
                       </div>
                     </td>
                     <td style={{ padding: '12px 14px', textAlign: 'center' }}>
@@ -799,15 +856,23 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
                 {/* Progress + Timeline */}
                 <div className="ledger-details-section">
                   <h4 className="ledger-sub-title">{language === 'ar' ? 'التقدم والجدول الزمني' : 'Progress & Timeline'}</h4>
-                  <div style={{ marginBottom: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.78rem', fontWeight: 500 }}>
-                      <span>{language === 'ar' ? 'نسبة الإنجاز' : 'Completion'}</span>
-                      <span style={{ color: selectedProject.progress_percentage >= 80 ? '#22c55e' : '#f97316' }}>{selectedProject.progress_percentage}%</span>
-                    </div>
-                    <div style={{ height: '8px', background: 'var(--border-color)', borderRadius: '99px', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${selectedProject.progress_percentage}%`, background: selectedProject.progress_percentage >= 80 ? '#22c55e' : selectedProject.progress_percentage >= 40 ? '#f97316' : '#6366f1', borderRadius: '99px', transition: 'width 0.4s' }} />
-                    </div>
-                  </div>
+                  {(() => {
+                    const isSelFinished = selectedProject.status === 'Completed' || selectedProject.status === 'Delivered';
+                    const selProgress = isSelFinished 
+                      ? 100 
+                      : (stats.totalTasks > 0 ? Math.round((stats.doneTasks / stats.totalTasks) * 100) : (selectedProject.progress_percentage || 0));
+                    return (
+                      <div style={{ marginBottom: '12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.78rem', fontWeight: 500 }}>
+                          <span>{language === 'ar' ? 'نسبة الإنجاز' : 'Completion'}</span>
+                          <span style={{ color: selectedProject.status === 'Delivered' ? '#0E4F2F' : selProgress >= 80 ? '#22c55e' : '#f97316' }}>{selProgress}%</span>
+                        </div>
+                        <div style={{ height: '8px', background: 'var(--border-color)', borderRadius: '99px', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${selProgress}%`, background: selectedProject.status === 'Delivered' ? '#0E4F2F' : selProgress >= 80 ? '#22c55e' : selProgress >= 40 ? '#f97316' : '#6366f1', borderRadius: '99px', transition: 'width 0.4s' }} />
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <div className="ledger-info-row">
                     <span className="info-label">{language === 'ar' ? 'تاريخ البدء:' : 'Start Date:'}</span>
                     <span className="info-value">{selectedProject.start_date ?? '—'}</span>
@@ -818,9 +883,20 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
                   </div>
                   {stats.daysLeft !== null && (
                     <div className="ledger-info-row">
-                      <span className="info-label">{language === 'ar' ? 'الأيام المتبقية:' : 'Days Left:'}</span>
-                      <span className="info-value" style={{ color: stats.daysLeft < 0 ? '#ef4444' : stats.daysLeft <= 7 ? '#f97316' : 'inherit', fontWeight: 500 }}>
-                        {stats.daysLeft < 0 ? `${Math.abs(stats.daysLeft)}d overdue` : `${stats.daysLeft}d remaining`}
+                      <span className="info-label">{language === 'ar' ? 'الحالة الزمنية:' : 'Timeline Status:'}</span>
+                      <span className="info-value" style={{ 
+                        color: (selectedProject.status === 'Completed' || selectedProject.status === 'Delivered')
+                          ? '#0E4F2F'
+                          : stats.daysLeft < 0 ? '#ef4444' : stats.daysLeft <= 7 ? '#f97316' : 'inherit', 
+                        fontWeight: 500 
+                      }}>
+                        {selectedProject.status === 'Delivered'
+                          ? (language === 'ar' ? 'تم التسليم بنجاح ✓' : 'Delivered ✓')
+                          : selectedProject.status === 'Completed'
+                          ? (language === 'ar' ? 'تم الإنجاز بنجاح ✓' : 'Completed ✓')
+                          : stats.daysLeft < 0 
+                          ? `${Math.abs(stats.daysLeft)}d overdue` 
+                          : `${stats.daysLeft}d remaining`}
                       </span>
                     </div>
                   )}
@@ -916,7 +992,17 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
 
                 <div className="form-group-item">
                   <label>{language === 'ar' ? 'الحالة' : 'Status'}</label>
-                  <select value={editStatus} onChange={e => setEditStatus(e.target.value as ProjectStatus)} className="milestone-form-input">
+                  <select 
+                    value={editStatus} 
+                    onChange={e => {
+                      const newStatus = e.target.value as ProjectStatus;
+                      setEditStatus(newStatus);
+                      if (newStatus === 'Completed' || newStatus === 'Delivered') {
+                        setEditProgress('100');
+                      }
+                    }} 
+                    className="milestone-form-input"
+                  >
                     {(Object.keys(STATUS_CONFIG) as ProjectStatus[]).map(s => (
                       <option key={s} value={s}>{language === 'ar' ? STATUS_CONFIG[s].labelAr : STATUS_CONFIG[s].label}</option>
                     ))}
@@ -1004,7 +1090,17 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
 
                 <div className="form-group-item">
                   <label>{language === 'ar' ? 'الحالة' : 'Status'}</label>
-                  <select value={addStatus} onChange={e => setAddStatus(e.target.value as ProjectStatus)} className="milestone-form-input">
+                  <select 
+                    value={addStatus} 
+                    onChange={e => {
+                      const newStatus = e.target.value as ProjectStatus;
+                      setAddStatus(newStatus);
+                      if (newStatus === 'Completed' || newStatus === 'Delivered') {
+                        setAddProgress('100');
+                      }
+                    }} 
+                    className="milestone-form-input"
+                  >
                     {(Object.keys(STATUS_CONFIG) as ProjectStatus[]).map(s => (
                       <option key={s} value={s}>{language === 'ar' ? STATUS_CONFIG[s].labelAr : STATUS_CONFIG[s].label}</option>
                     ))}

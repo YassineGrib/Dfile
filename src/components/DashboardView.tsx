@@ -72,14 +72,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const monthlyExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0);
 
-  // Total budget of projects that are not completed or cancelled
+  // Total budget of projects that are not completed, delivered, or cancelled
   const activeProjectsBudget = projects
-    .filter((p) => p.status !== 'Completed' && p.status !== 'Cancelled')
+    .filter((p) => p.status !== 'Completed' && p.status !== 'Delivered' && p.status !== 'Cancelled')
     .reduce((acc, curr) => acc + curr.price_dzd, 0);
 
   const activePaymentsReceived = payments.reduce((acc, curr) => {
     const proj = projects.find((p) => p.id === curr.project_id);
-    if (proj && proj.status !== 'Completed' && proj.status !== 'Cancelled') {
+    if (proj && proj.status !== 'Completed' && proj.status !== 'Delivered' && proj.status !== 'Cancelled') {
       return acc + curr.amount;
     }
     return acc;
@@ -276,16 +276,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   };
 
   // Projects ratio statuses
+  const deliveredCount = projects.filter((p) => p.status === 'Delivered').length;
+  const completedCount = projects.filter((p) => p.status === 'Completed').length;
   const inProgressCount = projects.filter((p) => p.status === 'In Progress').length;
   const waitingCount = projects.filter((p) => p.status === 'Waiting Client').length;
   const plannedCount = projects.filter((p) => p.status === 'Planned').length;
-  const completedCount = projects.filter((p) => p.status === 'Completed').length;
 
   const totalProjects = projects.length;
   const doughnutData = {
     labels:
       totalProjects > 0
         ? [
+            language === 'ar' ? 'تم التسليم' : 'Delivered',
             language === 'ar' ? 'مكتمل' : 'Completed',
             language === 'ar' ? 'قيد التنفيذ' : 'In Progress',
             language === 'ar' ? 'بانتظار العميل' : 'Waiting Client',
@@ -296,12 +298,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {
         data:
           totalProjects > 0
-            ? [completedCount, inProgressCount, waitingCount, plannedCount]
+            ? [deliveredCount, completedCount, inProgressCount, waitingCount, plannedCount]
             : [1],
         backgroundColor:
           totalProjects > 0
             ? [
-                '#0E4F2F', // Completed - var(--btn-primary)
+                '#0E4F2F', // Delivered - Emerald
+                '#22C55E', // Completed - Bright Green
                 '#E77C40', // In Progress - Orange
                 '#8C7CF0', // Waiting Client - Purple
                 '#E6E5E0', // Planned - Warm Gray
@@ -609,6 +612,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="legend-item flex-between">
               <div className="legend-label-group">
                 <span className="legend-dot" style={{ backgroundColor: '#0E4F2F' }}></span>
+                <span className="legend-label">{language === 'ar' ? 'تم التسليم' : 'Delivered'}</span>
+              </div>
+              <span className="legend-val-num">{deliveredCount}</span>
+            </div>
+            <div className="legend-item flex-between">
+              <div className="legend-label-group">
+                <span className="legend-dot" style={{ backgroundColor: '#22C55E' }}></span>
                 <span className="legend-label">{language === 'ar' ? 'مكتمل' : 'Completed'}</span>
               </div>
               <span className="legend-val-num">{completedCount}</span>
@@ -672,13 +682,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {language === 'ar' ? 'المواعيد النهائية القريبة' : 'Upcoming Deadlines'}
           </h4>
           <div className="deadlines-list-container">
-            {projects.filter((p) => p.status !== 'Completed' && p.status !== 'Cancelled' && p.end_date).length === 0 ? (
+            {projects.filter((p) => p.status !== 'Completed' && p.status !== 'Delivered' && p.status !== 'Cancelled' && p.end_date).length === 0 ? (
               <p className="no-activity-text">
                 {language === 'ar' ? 'لا توجد مواعيد تسليم قريبة.' : 'No upcoming deadlines.'}
               </p>
             ) : (
               projects
-                .filter((p) => p.status !== 'Completed' && p.status !== 'Cancelled' && p.end_date)
+                .filter((p) => p.status !== 'Completed' && p.status !== 'Delivered' && p.status !== 'Cancelled' && p.end_date)
                 .map((proj) => {
                   const days = getDaysRemaining(proj.end_date);
                   const client = clients.find((c) => c.id === proj.client_id);

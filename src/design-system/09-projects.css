@@ -214,8 +214,8 @@
 /* ── Kanban Board ── */
 .kanban-board-workspace {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
   align-items: start;
 }
 
@@ -235,7 +235,8 @@
 .col-counter-badge            { font-size: 0.72rem; font-weight: 500; padding: 2px 7px; border-radius: var(--radius-pill); color: white; }
 .col-counter-badge.counter-nextup     { background-color: #7A8B99; }
 .col-counter-badge.counter-inprogress { background-color: var(--accent-purple); }
-.col-counter-badge.counter-complete   { background-color: var(--btn-primary); }
+.col-counter-badge.counter-complete   { background-color: #22c55e; }
+.col-counter-badge.counter-delivered  { background-color: #0E4F2F; }
 
 .col-title-text { font-size: 0.95rem; font-weight: 500; color: var(--text-main); }
 
@@ -526,6 +527,9 @@
 .task-table-status-pill.status-nextup    { background-color: #EEF1F4; color: #7A8B99; }
 .task-table-status-pill.status-inprogress { background-color: var(--accent-purple-light); color: var(--accent-purple); }
 .task-table-status-pill.status-complete  { background-color: #E2F5EC; color: #0E4F2F; }
+.task-table-status-pill.status-completed { background-color: #ECFDF5; color: #15803d; }
+.task-table-status-pill.status-delivered { background-color: #E2F7EB; color: #0E4F2F; font-weight: 500; }
+.delivered-task-card { border-inline-start: 3px solid #0E4F2F !important; }
 
 .table-task-row-link            { cursor: pointer; }
 .table-task-row-link:hover td   { background-color: var(--bg-sidebar); }

@@ -97,7 +97,15 @@ const AuthAppContent: React.FC = () => {
   useEffect(() => {
     if (isFirebaseConfigured && isAuthenticated) {
       const unsubClients = firestoreService.subscribeClients((items) => setClients(items));
-      const unsubProjects = firestoreService.subscribeProjects((items) => setProjects(items));
+      const unsubProjects = firestoreService.subscribeProjects((items) => {
+        const normalized = items.map(p => {
+          if (p.status === 'Completed' || p.status === 'Delivered') {
+            return { ...p, progress_percentage: 100 };
+          }
+          return p;
+        });
+        setProjects(normalized);
+      });
       const unsubExpenses = firestoreService.subscribeExpenses((items) => setExpenses(items));
       const unsubInvoices = firestoreService.subscribeInvoices((items) => setInvoices(items));
       const unsubTasks = firestoreService.subscribeTasks((items) => setTasks(items));
@@ -169,18 +177,23 @@ const AuthAppContent: React.FC = () => {
   };
 
   const handleUpdateProject = (updatedProject: Project) => {
+    const isFinished = updatedProject.status === 'Completed' || updatedProject.status === 'Delivered';
+    const normalizedProject: Project = {
+      ...updatedProject,
+      progress_percentage: isFinished ? 100 : updatedProject.progress_percentage
+    };
     setProjects(prev => {
-      const exists = prev.some(p => p.id === updatedProject.id);
+      const exists = prev.some(p => p.id === normalizedProject.id);
       if (exists) {
-        return prev.map(p => p.id === updatedProject.id ? updatedProject : p);
+        return prev.map(p => p.id === normalizedProject.id ? normalizedProject : p);
       }
       // New project added via ProjectsDirectory
-      return [updatedProject, ...prev];
+      return [normalizedProject, ...prev];
     });
-    firestoreService.saveProject(updatedProject);
+    firestoreService.saveProject(normalizedProject);
     logActivity(
-      `Project '${updatedProject.name}' status updated to ${updatedProject.status}`,
-      `تم تحديث حالة المشروع '${updatedProject.name}' إلى ${updatedProject.status}`,
+      `Project '${normalizedProject.name}' status updated to ${normalizedProject.status}`,
+      `تم تحديث حالة المشروع '${normalizedProject.name}' إلى ${normalizedProject.status}`,
       'project'
     );
   };

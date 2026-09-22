@@ -299,12 +299,19 @@ export const AddProjectModal: React.FC<AddProjectModalProps> = ({
                 <select 
                   className="form-input" 
                   value={status}
-                  onChange={(e) => setStatus(e.target.value as ProjectStatus)}
+                  onChange={(e) => {
+                    const newStatus = e.target.value as ProjectStatus;
+                    setStatus(newStatus);
+                    if (newStatus === 'Completed' || newStatus === 'Delivered') {
+                      setProgress(100);
+                    }
+                  }}
                 >
                   <option value="Planned">{language === 'ar' ? 'مخطط له (Planned)' : 'Planned'}</option>
                   <option value="In Progress">{language === 'ar' ? 'قيد التنفيذ (In Progress)' : 'In Progress'}</option>
                   <option value="Waiting Client">{language === 'ar' ? 'بانتظار العميل (Waiting)' : 'Waiting Client'}</option>
                   <option value="Completed">{language === 'ar' ? 'مكتمل (Completed)' : 'Completed'}</option>
+                  <option value="Delivered">{language === 'ar' ? 'تم التسليم (Delivered)' : 'Delivered'}</option>
                   <option value="Cancelled">{language === 'ar' ? 'ملغي (Cancelled)' : 'Cancelled'}</option>
                 </select>
               </div>

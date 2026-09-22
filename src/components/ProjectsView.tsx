@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLanguage } from './LanguageContext';
-import type { Project, Client, Task, Payment } from '../types';
+import type { Project, Client, Task, Payment, ProjectStatus } from '../types';
 import { UserAvatar } from './UserAvatar';
 
 interface ProjectsViewProps {
@@ -29,7 +29,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
 
   // Table View Filter & Sort states
   const [tableSearch, setTableSearch] = useState('');
-  const [tableStatusFilter, setTableStatusFilter] = useState<'All' | 'Planned' | 'In Progress' | 'Completed'>('All');
+  const [tableStatusFilter, setTableStatusFilter] = useState<'All' | 'Planned' | 'In Progress' | 'Completed' | 'Delivered'>('All');
   const [tableSortField, setTableSortField] = useState<'name' | 'price_dzd' | 'progress_percentage' | 'end_date'>('name');
   const [tableSortAsc, setTableSortAsc] = useState(true);
 
@@ -58,7 +58,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
     e.preventDefault();
   };
 
-  const handleDrop = (e: React.DragEvent, newStatus: 'Planned' | 'In Progress' | 'Completed') => {
+  const handleDrop = (e: React.DragEvent, newStatus: ProjectStatus) => {
     e.preventDefault();
     const projectId = e.dataTransfer.getData('text/plain');
     const proj = projects.find(p => p.id === projectId);
@@ -72,7 +72,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   };
 
   // Project Column drag/click movement handler
-  const handleMoveProjectStatus = (project: Project, newStatus: 'Planned' | 'In Progress' | 'Completed', e: React.MouseEvent) => {
+  const handleMoveProjectStatus = (project: Project, newStatus: ProjectStatus, e: React.MouseEvent) => {
     e.stopPropagation();
     onUpdateProject({ ...project, status: newStatus });
     if (selectedProject && selectedProject.id === project.id) {
@@ -84,6 +84,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   const plannedProjects = projects.filter(p => p.status === 'Planned');
   const inProgressProjects = projects.filter(p => p.status === 'In Progress' || p.status === 'Waiting Client');
   const completedProjects = projects.filter(p => p.status === 'Completed');
+  const deliveredProjects = projects.filter(p => p.status === 'Delivered');
 
 
 
@@ -108,7 +109,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
       tableStatusFilter === 'All' ||
       (tableStatusFilter === 'In Progress' && (p.status === 'In Progress' || p.status === 'Waiting Client')) ||
       (tableStatusFilter === 'Planned' && p.status === 'Planned') ||
-      (tableStatusFilter === 'Completed' && p.status === 'Completed');
+      (tableStatusFilter === 'Completed' && p.status === 'Completed') ||
+      (tableStatusFilter === 'Delivered' && p.status === 'Delivered');
 
     return matchesSearch && matchesStatus;
   }).sort((a, b) => {
@@ -470,6 +472,85 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                         >
                           ←
                         </button>
+                        <button 
+                          onClick={(e) => handleMoveProjectStatus(proj, 'Delivered', e)} 
+                          title="Move to Delivered"
+                          className="move-arrow-btn"
+                        >
+                          →
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* COLUMN 4: Delivered */}
+          <div className="kanban-column column-delivered">
+            <div className="column-header-row">
+              <div className="col-label-group">
+                <span className="col-counter-badge counter-delivered">{deliveredProjects.length}</span>
+                <span className="col-title-text">{language === 'ar' ? 'تم التسليم' : 'Delivered'}</span>
+              </div>
+              <button onClick={onOpenAddProject} className="add-task-col-btn">+</button>
+            </div>
+
+            <div 
+              className="kanban-cards-stack"
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, 'Delivered')}
+            >
+              {deliveredProjects.map(proj => {
+                const client = clients.find(c => c.id === proj.client_id);
+                return (
+                  <div 
+                    key={proj.id} 
+                    className="kanban-task-card completed-task-card delivered-task-card"
+                    onClick={() => setSelectedProject(proj)}
+                    draggable={true}
+                    onDragStart={(e) => handleDragStart(e, proj.id)}
+                  >
+                    <div className="card-client-label">{client ? client.name : 'Unknown Client'}</div>
+                    <h5 className="card-task-title">{proj.name}</h5>
+                    
+                    <span className={`proj-category-badge category-${proj.category.toLowerCase()}`} style={{ alignSelf: 'flex-start', margin: '4px 0' }}>
+                      {proj.category}
+                    </span>
+
+                    {/* Financial Progress & Debt Tracker */}
+                    {(() => {
+                      const paid = getProjectPaid(proj.id);
+                      const remaining = Math.max(0, proj.price_dzd - paid);
+                      const percent = proj.price_dzd > 0 ? Math.min(100, Math.round((paid / proj.price_dzd) * 100)) : 0;
+                      return (
+                        <div className="project-financial-bar-row">
+                          <div className="financial-bar-label-wrap">
+                            <span>{language === 'ar' ? 'المحصل:' : 'Paid:'} {paid.toLocaleString()} DZ</span>
+                            <span style={{ color: remaining === 0 ? '#0E4F2F' : 'var(--accent-orange)' }}>
+                              {remaining === 0 ? (language === 'ar' ? 'مسدد' : 'Cleared') : `${language === 'ar' ? 'باقي' : 'Due'}: ${remaining.toLocaleString()}`}
+                            </span>
+                          </div>
+                          <div className="financial-bar-bg">
+                            <div className="financial-bar-fill" style={{ width: `${percent}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    <div className="card-metadata-footer">
+                      <div className="card-due-date" style={{ color: '#0E4F2F', fontWeight: 500 }}>
+                        ✓✓ {language === 'ar' ? 'تم التسليم' : 'Delivered'}
+                      </div>
+                      <div className="card-move-controllers">
+                        <button 
+                          onClick={(e) => handleMoveProjectStatus(proj, 'Completed', e)} 
+                          title="Move back to Completed"
+                          className="move-arrow-btn"
+                        >
+                          ←
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -536,6 +617,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                 <option value="Planned">{language === 'ar' ? 'مخطط له' : 'Planned'}</option>
                 <option value="In Progress">{language === 'ar' ? 'قيد التنفيذ' : 'In Progress'}</option>
                 <option value="Completed">{language === 'ar' ? 'مكتمل' : 'Completed'}</option>
+                <option value="Delivered">{language === 'ar' ? 'تم التسليم' : 'Delivered'}</option>
               </select>
             </div>
           </div>
@@ -587,15 +669,20 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                         </td>
                         <td className="font-bold">{proj.price_dzd.toLocaleString()} DZ</td>
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '0.78rem', fontWeight: 500, width: '32px' }}>{proj.progress_percentage}%</span>
-                            <div className="progress-bar-bg" style={{ width: '80px', height: '6px', margin: 0 }}>
-                              <div 
-                                className="progress-bar-fill" 
-                                style={{ width: `${proj.progress_percentage}%`, height: '100%', backgroundColor: proj.progress_percentage === 100 ? '#0E4F2F' : 'var(--accent-purple)' }}
-                              ></div>
-                            </div>
-                          </div>
+                          {(() => {
+                            const effectiveProg = (proj.status === 'Completed' || proj.status === 'Delivered') ? 100 : (proj.progress_percentage || 0);
+                            return (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '0.78rem', fontWeight: 500, width: '32px' }}>{effectiveProg}%</span>
+                                <div className="progress-bar-bg" style={{ width: '80px', height: '6px', margin: 0 }}>
+                                  <div 
+                                    className="progress-bar-fill" 
+                                    style={{ width: `${effectiveProg}%`, height: '100%', backgroundColor: effectiveProg === 100 ? '#0E4F2F' : 'var(--accent-purple)' }}
+                                  ></div>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td>
                           <div style={{ fontSize: '0.78rem', fontWeight: 500 }}>

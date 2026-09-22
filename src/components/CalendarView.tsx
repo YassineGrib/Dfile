@@ -378,7 +378,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                             <span className="span-client-txt">{client ? client.name : 'Independent'}</span>
                             <span className="span-dates-txt">({proj.start_date ? proj.start_date.substring(5) : 'Jul'} - {proj.end_date ? proj.end_date.substring(5) : 'Aug'})</span>
                           </div>
-                          <div className="span-bar-progress-line" style={{ width: `${proj.progress_percentage}%` }}></div>
+                          <div className="span-bar-progress-line" style={{ width: `${proj.status === 'Completed' || proj.status === 'Delivered' ? 100 : proj.progress_percentage}%` }}></div>
                         </div>
                       </div>
                     </div>
