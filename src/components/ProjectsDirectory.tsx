@@ -536,33 +536,28 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
                     )}
                   </div>
 
-                  {/* Client */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    {client?.name ? (
-                      <UserAvatar name={client.name} size={20} animate="hover" />
-                    ) : (
-                      <User size={13} />
-                    )}
-                    <span style={{ fontWeight: 450, color: 'var(--text-main)' }}>{client?.name ?? '—'}</span>
-                  </div>
+                  {/* Client & Compact Progress Badge */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', fontSize: '0.78rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)' }}>
+                      {client?.name ? (
+                        <UserAvatar name={client.name} size={20} animate="hover" />
+                      ) : (
+                        <User size={13} />
+                      )}
+                      <span style={{ fontWeight: 450, color: 'var(--text-main)' }}>{client?.name ?? '—'}</span>
+                    </div>
 
-                  {/* Progress Bar */}
-                  <div style={{ marginTop: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '0.72rem', fontWeight: 450 }}>
-                      <span style={{ color: 'var(--text-muted)' }}>{language === 'ar' ? 'التقدم' : 'Progress'}</span>
-                      <span style={{ color: project.status === 'Delivered' ? '#0E4F2F' : effectiveProgress >= 80 ? '#22c55e' : effectiveProgress >= 40 ? '#f97316' : '#6b7280' }}>
-                        {effectiveProgress}%
-                      </span>
-                    </div>
-                    <div style={{ height: '6px', background: 'var(--border-color)', borderRadius: '99px', overflow: 'hidden' }}>
-                      <div style={{
-                        height: '100%',
-                        width: `${effectiveProgress}%`,
-                        borderRadius: '99px',
-                        background: project.status === 'Delivered' ? '#0E4F2F' : effectiveProgress >= 80 ? '#22c55e' : effectiveProgress >= 40 ? '#f97316' : '#6366f1',
-                        transition: 'width 0.4s ease'
-                      }} />
-                    </div>
+                    <span style={{ 
+                      fontSize: '0.72rem', 
+                      fontWeight: 500, 
+                      color: statusColor,
+                      background: hexToRgba(statusColor, 0.12),
+                      padding: '2px 8px',
+                      borderRadius: '99px',
+                      fontFeatureSettings: '"tnum" 1'
+                    }}>
+                      {effectiveProgress}%
+                    </span>
                   </div>
                 </div>
 
