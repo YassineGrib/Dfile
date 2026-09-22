@@ -81,10 +81,35 @@ const AuthAppContent: React.FC = () => {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
 
-  // Profile & Contract Template states
-  const [freelancerProfile, setFreelancerProfile] = useState(defaultProfile);
-  const [contractClauses, setContractClauses] = useState(defaultClauses);
-  const [projectCategories, setProjectCategories] = useState(['Web Design', 'Development', 'SEO Optimization', 'Design Retainer']);
+  // Profile & Contract Template states with instant localStorage retrieval
+  const [freelancerProfile, setFreelancerProfile] = useState<FreelancerProfile>(() => {
+    const saved = localStorage.getItem('fintask_freelancer_profile');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.warn('Could not parse saved freelancer profile:', e);
+      }
+    }
+    return defaultProfile;
+  });
+
+  const [contractClauses, setContractClauses] = useState<string>(() => {
+    return localStorage.getItem('fintask_contract_clauses') || defaultClauses;
+  });
+
+  const [projectCategories, setProjectCategories] = useState<string[]>(() => {
+    const saved = localStorage.getItem('fintask_project_categories');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        console.warn('Could not parse saved project categories:', e);
+      }
+    }
+    return ['Web Design', 'Development', 'SEO Optimization', 'Design Retainer'];
+  });
 
   // Auth state listener
   useEffect(() => {
@@ -118,10 +143,17 @@ const AuthAppContent: React.FC = () => {
       const unsubContracts = firestoreService.subscribeContracts((items) => setContracts(items));
       const unsubSettings = firestoreService.subscribeWorkspacePreferences((prefs) => {
         if (prefs) {
-          if (prefs.profile) setFreelancerProfile(prefs.profile);
-          if (prefs.contract_clauses) setContractClauses(prefs.contract_clauses);
+          if (prefs.profile) {
+            setFreelancerProfile(prefs.profile);
+            localStorage.setItem('fintask_freelancer_profile', JSON.stringify(prefs.profile));
+          }
+          if (prefs.contract_clauses) {
+            setContractClauses(prefs.contract_clauses);
+            localStorage.setItem('fintask_contract_clauses', prefs.contract_clauses);
+          }
           if (prefs.categories && Array.isArray(prefs.categories) && prefs.categories.length > 0) {
             setProjectCategories(prefs.categories);
+            localStorage.setItem('fintask_project_categories', JSON.stringify(prefs.categories));
           }
           if (prefs.font_theme && FONT_THEMES_MAP[prefs.font_theme]) {
             localStorage.setItem('indflow_font_theme', prefs.font_theme);
@@ -221,18 +253,21 @@ const AuthAppContent: React.FC = () => {
 
   const handleUpdateProfile = (newProfile: FreelancerProfile) => {
     setFreelancerProfile(newProfile);
+    localStorage.setItem('fintask_freelancer_profile', JSON.stringify(newProfile));
     firestoreService.saveWorkspacePreferences({ profile: newProfile });
     logActivity(`Workspace profile updated`, `تم تحديث بيانات الملف الشخصي لمساحة العمل`, 'client');
   };
 
   const handleUpdateClauses = (newClauses: string) => {
     setContractClauses(newClauses);
+    localStorage.setItem('fintask_contract_clauses', newClauses);
     firestoreService.saveWorkspacePreferences({ contract_clauses: newClauses });
     logActivity(`Legal contract clauses updated`, `تم تحديث البنود القانونية للعقود`, 'client');
   };
 
   const handleUpdateCategories = (newCategories: string[]) => {
     setProjectCategories(newCategories);
+    localStorage.setItem('fintask_project_categories', JSON.stringify(newCategories));
     firestoreService.saveWorkspacePreferences({ categories: newCategories });
     logActivity(`Project categories updated`, `تم تحديث تصنيفات المشاريع`, 'project');
   };

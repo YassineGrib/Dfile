@@ -102,12 +102,47 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // Navigation Tabs for Settings sections
   const [activeTab, setActiveTab] = useState<'account' | 'preferences' | 'security' | 'integrations' | 'notifications' | 'about'>('account');
 
-  // Form states for profile
-  const [name, setName] = useState(profile.name || '');
-  const [designation, setDesignation] = useState(profile.designation || '');
-  const [email, setEmail] = useState(profile.email || '');
-  const [phone, setPhone] = useState(profile.phone || '');
-  const [address, setAddress] = useState(profile.address || '');
+  // Form states for profile with instant local cache fallback
+  const [name, setName] = useState(() => {
+    if (profile?.name) return profile.name;
+    const cached = localStorage.getItem('fintask_freelancer_profile');
+    if (cached) {
+      try { return JSON.parse(cached).name || ''; } catch { /* ignore */ }
+    }
+    return '';
+  });
+  const [designation, setDesignation] = useState(() => {
+    if (profile?.designation) return profile.designation;
+    const cached = localStorage.getItem('fintask_freelancer_profile');
+    if (cached) {
+      try { return JSON.parse(cached).designation || ''; } catch { /* ignore */ }
+    }
+    return '';
+  });
+  const [email, setEmail] = useState(() => {
+    if (profile?.email) return profile.email;
+    const cached = localStorage.getItem('fintask_freelancer_profile');
+    if (cached) {
+      try { return JSON.parse(cached).email || ''; } catch { /* ignore */ }
+    }
+    return '';
+  });
+  const [phone, setPhone] = useState(() => {
+    if (profile?.phone) return profile.phone;
+    const cached = localStorage.getItem('fintask_freelancer_profile');
+    if (cached) {
+      try { return JSON.parse(cached).phone || ''; } catch { /* ignore */ }
+    }
+    return '';
+  });
+  const [address, setAddress] = useState(() => {
+    if (profile?.address) return profile.address;
+    const cached = localStorage.getItem('fintask_freelancer_profile');
+    if (cached) {
+      try { return JSON.parse(cached).address || ''; } catch { /* ignore */ }
+    }
+    return '';
+  });
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // Form states for password change simulation
@@ -205,6 +240,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   useEffect(() => {
     const unsub = firestoreService.subscribeWorkspacePreferences((prefs) => {
       if (!prefs) return;
+      if (prefs.profile) {
+        setName(prefs.profile.name || '');
+        setDesignation(prefs.profile.designation || '');
+        setEmail(prefs.profile.email || '');
+        setPhone(prefs.profile.phone || '');
+        setAddress(prefs.profile.address || '');
+      }
+      if (prefs.contract_clauses) {
+        setClauses(prefs.contract_clauses);
+      }
       if (prefs.font_theme) {
         setActiveFontTheme(prefs.font_theme);
         const theme = FONT_THEMES.find(t => t.id === prefs.font_theme);
@@ -240,8 +285,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const handleProfileSave = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSavingProfile(true);
+    const updatedProfile: FreelancerProfile = { name, designation, email, phone, address };
     try {
-      onUpdateProfile({ name, designation, email, phone, address });
+      localStorage.setItem('fintask_freelancer_profile', JSON.stringify(updatedProfile));
+      onUpdateProfile(updatedProfile);
+      firestoreService.saveWorkspacePreferences({ profile: updatedProfile });
       triggerToast(language === 'ar' ? 'تم تحديث وحفظ الملف الشخصي بنجاح!' : 'Profile updated and saved successfully!');
     } finally {
       setIsSavingProfile(false);

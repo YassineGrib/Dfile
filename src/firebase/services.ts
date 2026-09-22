@@ -158,6 +158,16 @@ export const firestoreService = {
     callback: (prefs: WorkspacePreferences | null) => void,
     id = 'workspace_default'
   ): (() => void) => {
+    // 1. Immediately emit cached localStorage data if available
+    try {
+      const cached = localStorage.getItem('fintask_workspace_prefs');
+      if (cached) {
+        callback(JSON.parse(cached) as WorkspacePreferences);
+      }
+    } catch (e) {
+      console.warn('Could not read cached preferences:', e);
+    }
+
     if (!isFirebaseConfigured || !db) return () => {};
     try {
       const docRef = doc(db, 'settings', id);
@@ -165,7 +175,16 @@ export const firestoreService = {
         docRef,
         (snapshot) => {
           if (snapshot.exists()) {
-            callback({ ...snapshot.data(), id: snapshot.id } as WorkspacePreferences);
+            const data = { ...snapshot.data(), id: snapshot.id } as WorkspacePreferences;
+            try {
+              localStorage.setItem('fintask_workspace_prefs', JSON.stringify(data));
+              if (data.profile) {
+                localStorage.setItem('fintask_freelancer_profile', JSON.stringify(data.profile));
+              }
+            } catch (e) {
+              console.warn('Could not update cached prefs:', e);
+            }
+            callback(data);
           } else {
             callback(null);
           }
@@ -184,6 +203,19 @@ export const firestoreService = {
     prefs: Partial<WorkspacePreferences>,
     id = 'workspace_default'
   ): Promise<void> => {
+    // 1. Immediately update localStorage cache
+    try {
+      const existing = localStorage.getItem('fintask_workspace_prefs');
+      const parsed = existing ? JSON.parse(existing) : {};
+      const merged = { ...parsed, ...prefs, updated_at: new Date().toISOString() };
+      localStorage.setItem('fintask_workspace_prefs', JSON.stringify(merged));
+      if (prefs.profile) {
+        localStorage.setItem('fintask_freelancer_profile', JSON.stringify(prefs.profile));
+      }
+    } catch (e) {
+      console.warn('Could not cache prefs in localStorage:', e);
+    }
+
     if (!isFirebaseConfigured || !db) return;
     try {
       const docRef = doc(db, 'settings', id);
