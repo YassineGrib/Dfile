@@ -44,6 +44,7 @@ interface DashboardViewProps {
   onOpenAddClient: () => void;
   onOpenAddExpense: () => void;
   onOpenAddPayment?: () => void;
+  freelancerName?: string;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -56,6 +57,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenAddClient,
   onOpenAddExpense,
   onOpenAddPayment,
+  freelancerName,
 }) => {
   const { language } = useLanguage();
   const [timeRange, setTimeRange] = useState<'6m' | 'year'>('6m');
@@ -343,7 +345,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <header className="dashboard-header-bar">
         <div className="header-greeting-info">
           <h2 className="header-greeting-title">
-            {language === 'ar' ? 'مرحباً بك مجدداً، صادق!' : 'Welcome back, Sadek!'}
+            {language === 'ar' 
+              ? `مرحباً بك مجدداً${freelancerName ? `، ${freelancerName}` : '!'}` 
+              : `Welcome back, ${freelancerName || 'Freelancer'}!`}
           </h2>
           <p className="header-greeting-subtitle">
             {language === 'ar'

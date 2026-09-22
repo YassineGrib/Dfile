@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLanguage } from './LanguageContext';
 import { UserAvatar } from './UserAvatar';
-import type { Project, Client, Payment } from '../types';
+import type { Project, Client, Payment, FreelancerProfile } from '../types';
 import { 
   LayoutDashboard, Users, Calendar, 
   Settings, Plus, ChevronDown, ChevronRight,
@@ -19,6 +19,7 @@ interface SidebarProps {
   projects: Project[];
   clients: Client[];
   payments?: Payment[];
+  userProfile?: FreelancerProfile;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -30,6 +31,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   projects,
   clients,
   payments = [],
+  userProfile,
 }) => {
   const { language } = useLanguage();
 
@@ -41,16 +43,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // Take first 3 projects for sidebar rendering
   const sidebarProjects = projects.slice(0, 3);
 
+  const displayName = userProfile?.name?.trim() || 'Workspace User';
+  const displayRole = userProfile?.designation?.trim() || (language === 'ar' ? 'حساب فريلانس' : 'Freelance Plan');
+
   return (
     <aside className="sidebar">
       
       {/* 1. USER PROFILE HEADER WITH BLOBATAR AVATAR */}
       <div className="sidebar-profile-header" onClick={onLogout} title={language === 'ar' ? 'تسجيل الخروج' : 'Logout'}>
-        <UserAvatar name="Sadek Rahman" size={38} animate="hover" />
+        <UserAvatar name={displayName} size={38} animate="hover" />
         <div className="profile-info-column">
-          <span className="profile-name-text">Sadek Rahman</span>
+          <span className="profile-name-text">{displayName}</span>
           <span className="profile-plan-text">
-            {language === 'ar' ? 'حساب فريلانس' : 'Freelance Plan'}
+            {displayRole}
           </span>
         </div>
         <div className="profile-select-chevrons">

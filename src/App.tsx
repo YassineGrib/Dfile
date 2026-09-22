@@ -538,6 +538,7 @@ const AuthAppContent: React.FC = () => {
             projects={projects}
             clients={clients}
             payments={payments}
+            userProfile={freelancerProfile}
           />
 
           {/* Main Workspace Frame */}
@@ -554,6 +555,7 @@ const AuthAppContent: React.FC = () => {
                 onOpenAddClient={() => setIsClientModalOpen(true)}
                 onOpenAddExpense={() => setIsExpenseModalOpen(true)}
                 onOpenAddPayment={() => setIsPaymentModalOpen(true)}
+                freelancerName={freelancerProfile.name}
               />
             )}
 
