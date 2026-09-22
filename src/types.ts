@@ -130,3 +130,36 @@ export interface Contract {
   content: string;
 }
 
+export interface FreelancerProfile {
+  name: string;
+  designation: string;
+  email: string;
+  phone: string;
+  address: string;
+}
+
+export interface WorkspacePreferences {
+  id: string;
+  profile?: FreelancerProfile;
+  categories?: string[];
+  contract_clauses?: string;
+  font_theme?: string;
+  theme_mode?: 'light' | 'dark' | 'system';
+  security?: {
+    pin_enabled: boolean;
+    pin_code: string;
+    biometrics_enabled: boolean;
+  };
+  integrations?: {
+    google_connected: boolean;
+    google_email: string;
+  };
+  notifications?: {
+    push_enabled: boolean;
+    notify_deadlines: boolean;
+    notify_payments: boolean;
+    notify_tasks: boolean;
+  };
+  updated_at?: string;
+}
+

@@ -121,7 +121,7 @@ service cloud.firestore {
              data.name is string && data.name.size() > 0 && data.name.size() <= 150 &&
              data.price_dzd is number && data.price_dzd >= 0 &&
              data.progress_percentage is number && data.progress_percentage >= 0 && data.progress_percentage <= 100 &&
-             data.status in ['Planned', 'In Progress', 'Waiting Client', 'Completed', 'Cancelled'];
+             data.status in ['Planned', 'In Progress', 'Waiting Client', 'Completed', 'Delivered', 'Cancelled'];
     }
 
     function isValidExpense(data) {
@@ -231,6 +231,17 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isAuthenticated() && (request.auth.uid == userId || resource.data.uid == request.auth.uid);
       allow create, update: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Workspace Settings and Preferences
+    match /settings/{settingId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Support Tickets
+    match /support_tickets/{ticketId} {
+      allow read, create, update: if isAuthenticated();
+      allow delete: if isAuthenticated();
     }
 
     // Default deny for anything not explicitly matched

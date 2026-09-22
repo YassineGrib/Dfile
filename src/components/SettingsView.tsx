@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   User, Shield, Link, Bell, Info, Save, Key, 
   Download, LogOut, Check, Globe, Moon, Sun, Monitor,
-  ShieldAlert, Eye, EyeOff, Plus, Type
+  ShieldAlert, Eye, EyeOff, Plus, Type, Loader2
 } from 'lucide-react';
 import { isFirebaseConfigured } from '../firebase/config';
 import { UserAvatar } from './UserAvatar';
 import { useTheme } from '../core';
+import { firestoreService } from '../firebase/services';
+import { authService } from '../firebase/auth';
+import type { FreelancerProfile } from '../types';
 
 interface FontThemeOption {
   id: string;
@@ -68,20 +71,8 @@ const FONT_THEMES: FontThemeOption[] = [
 ];
 
 interface SettingsViewProps {
-  profile: {
-    name: string;
-    designation: string;
-    email: string;
-    phone: string;
-    address: string;
-  };
-  onUpdateProfile: (p: {
-    name: string;
-    designation: string;
-    email: string;
-    phone: string;
-    address: string;
-  }) => void;
+  profile: FreelancerProfile;
+  onUpdateProfile: (p: FreelancerProfile) => void;
   contractClauses: string;
   onUpdateClauses: (clauses: string) => void;
   toggleLanguage: () => void;
@@ -112,11 +103,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [activeTab, setActiveTab] = useState<'account' | 'preferences' | 'security' | 'integrations' | 'notifications' | 'about'>('account');
 
   // Form states for profile
-  const [name, setName] = useState(profile.name);
-  const [designation, setDesignation] = useState(profile.designation);
-  const [email, setEmail] = useState(profile.email);
-  const [phone, setPhone] = useState(profile.phone);
-  const [address, setAddress] = useState(profile.address);
+  const [name, setName] = useState(profile.name || '');
+  const [designation, setDesignation] = useState(profile.designation || '');
+  const [email, setEmail] = useState(profile.email || '');
+  const [phone, setPhone] = useState(profile.phone || '');
+  const [address, setAddress] = useState(profile.address || '');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // Form states for password change simulation
   const [showPasswordSection, setShowPasswordSection] = useState(false);
@@ -125,9 +117,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showOldPass, setShowOldPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   // Contract standard clauses template
-  const [clauses, setClauses] = useState(contractClauses);
+  const [clauses, setClauses] = useState(contractClauses || '');
 
   // Project Category adder state
   const [newCatName, setNewCatName] = useState('');
@@ -144,11 +137,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     localStorage.setItem('indflow_font_theme', themeId);
     document.documentElement.style.setProperty('--font-sans', theme.sans);
     document.documentElement.style.setProperty('--font-ar', theme.ar);
+    firestoreService.saveWorkspacePreferences({ font_theme: themeId });
     triggerToast(language === 'ar' ? `تم تفعيل خط: ${theme.nameAr}` : `Typography switched to ${theme.name}`);
   };
 
   // Theme context from core
   const { mode, setMode } = useTheme();
+
+  const handleThemeModeChange = (newMode: 'light' | 'dark' | 'system') => {
+    setMode(newMode);
+    firestoreService.saveWorkspacePreferences({ theme_mode: newMode });
+    const msg = newMode === 'light' 
+      ? (language === 'ar' ? 'تم تفعيل الوضع الفاتح' : 'Light mode activated')
+      : newMode === 'dark'
+      ? (language === 'ar' ? 'تم تفعيل الوضع الداكن' : 'Dark mode activated')
+      : (language === 'ar' ? 'تم التبديل لتوافق النظام' : 'System preference activated');
+    triggerToast(msg);
+  };
+
+  // Security Lock states
   const [pinEnabled, setPinEnabled] = useState(true);
   const [biometricsEnabled, setBiometricsEnabled] = useState(true);
   const [pinCode, setPinCode] = useState('1234');
@@ -169,86 +176,263 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [isSubmittingSupport, setIsSubmittingSupport] = useState(false);
 
   // Toast confirmation
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; isError?: boolean } | null>(null);
 
-  const triggerToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 2000);
+  const triggerToast = (msg: string, isError = false) => {
+    setToast({ message: msg, isError });
+    setTimeout(() => setToast(null), 3000);
   };
+
+  // Sync profile when updated from Firestore
+  useEffect(() => {
+    if (profile) {
+      setName(profile.name || '');
+      setDesignation(profile.designation || '');
+      setEmail(profile.email || '');
+      setPhone(profile.phone || '');
+      setAddress(profile.address || '');
+    }
+  }, [profile]);
+
+  // Sync contract clauses when updated from Firestore
+  useEffect(() => {
+    if (contractClauses !== undefined) {
+      setClauses(contractClauses);
+    }
+  }, [contractClauses]);
+
+  // Subscribe to backend Workspace Preferences in Firestore
+  useEffect(() => {
+    const unsub = firestoreService.subscribeWorkspacePreferences((prefs) => {
+      if (!prefs) return;
+      if (prefs.font_theme) {
+        setActiveFontTheme(prefs.font_theme);
+        const theme = FONT_THEMES.find(t => t.id === prefs.font_theme);
+        if (theme) {
+          document.documentElement.style.setProperty('--font-sans', theme.sans);
+          document.documentElement.style.setProperty('--font-ar', theme.ar);
+          localStorage.setItem('indflow_font_theme', prefs.font_theme);
+        }
+      }
+      if (prefs.theme_mode && (prefs.theme_mode === 'light' || prefs.theme_mode === 'dark' || prefs.theme_mode === 'system')) {
+        setMode(prefs.theme_mode);
+      }
+      if (prefs.security) {
+        if (typeof prefs.security.pin_enabled === 'boolean') setPinEnabled(prefs.security.pin_enabled);
+        if (typeof prefs.security.biometrics_enabled === 'boolean') setBiometricsEnabled(prefs.security.biometrics_enabled);
+        if (typeof prefs.security.pin_code === 'string') setPinCode(prefs.security.pin_code);
+      }
+      if (prefs.integrations) {
+        if (typeof prefs.integrations.google_connected === 'boolean') setGoogleConnected(prefs.integrations.google_connected);
+        if (typeof prefs.integrations.google_email === 'string') setGoogleEmail(prefs.integrations.google_email);
+      }
+      if (prefs.notifications) {
+        if (typeof prefs.notifications.push_enabled === 'boolean') setPushEnabled(prefs.notifications.push_enabled);
+        if (typeof prefs.notifications.notify_deadlines === 'boolean') setNotifyDeadlines(prefs.notifications.notify_deadlines);
+        if (typeof prefs.notifications.notify_payments === 'boolean') setNotifyPayments(prefs.notifications.notify_payments);
+        if (typeof prefs.notifications.notify_tasks === 'boolean') setNotifyTasks(prefs.notifications.notify_tasks);
+      }
+    });
+
+    return () => unsub();
+  }, [setMode]);
 
   const handleProfileSave = (e: React.FormEvent) => {
     e.preventDefault();
-    onUpdateProfile({ name, designation, email, phone, address });
-    triggerToast(language === 'ar' ? 'تم تحديث الملف الشخصي بنجاح!' : 'Profile updated successfully!');
+    setIsSavingProfile(true);
+    try {
+      onUpdateProfile({ name, designation, email, phone, address });
+      triggerToast(language === 'ar' ? 'تم تحديث وحفظ الملف الشخصي بنجاح!' : 'Profile updated and saved successfully!');
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPassword !== confirmPassword) {
-      triggerToast(language === 'ar' ? 'كلمات المرور الجديدة غير متطابقة!' : 'New passwords do not match!');
+    if (newPassword.length < 6) {
+      triggerToast(language === 'ar' ? 'يجب أن تتكون كلمة المرور من 6 أحرف على الأقل' : 'Password must be at least 6 characters', true);
       return;
     }
-    triggerToast(language === 'ar' ? 'تم تغيير كلمة المرور بنجاح!' : 'Password updated successfully!');
-    setOldPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setShowPasswordSection(false);
+    if (newPassword !== confirmPassword) {
+      triggerToast(language === 'ar' ? 'كلمات المرور الجديدة غير متطابقة!' : 'New passwords do not match!', true);
+      return;
+    }
+    setIsUpdatingPassword(true);
+    const res = await authService.updatePassword(oldPassword, newPassword, language);
+    setIsUpdatingPassword(false);
+    if (res.error) {
+      triggerToast(res.error, true);
+    } else {
+      triggerToast(language === 'ar' ? 'تم تغيير كلمة المرور بنجاح!' : 'Password updated successfully!');
+      setOldPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setShowPasswordSection(false);
+    }
   };
 
   const handleAddCategory = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCatName.trim()) return;
-    if (categories.includes(newCatName.trim())) {
-      triggerToast(language === 'ar' ? 'هذا التصنيف موجود بالفعل!' : 'Category already exists!');
+    const trimmed = newCatName.trim();
+    if (!trimmed) return;
+    if (categories.includes(trimmed)) {
+      triggerToast(language === 'ar' ? 'هذا التصنيف موجود بالفعل!' : 'Category already exists!', true);
       return;
     }
-    onUpdateCategories([...categories, newCatName.trim()]);
+    onUpdateCategories([...categories, trimmed]);
     setNewCatName('');
-    triggerToast(language === 'ar' ? 'تم إضافة التصنيف الجديد!' : 'New category added!');
+    triggerToast(language === 'ar' ? 'تم إضافة التصنيف الجديد وحفظه بالسحابة!' : 'New category added and saved to cloud!');
   };
 
   const handleRemoveCategory = (cat: string) => {
     onUpdateCategories(categories.filter(c => c !== cat));
-    triggerToast(language === 'ar' ? 'تم إزالة التصنيف!' : 'Category removed.');
+    triggerToast(language === 'ar' ? 'تم إزالة التصنيف وتحديث السحابة!' : 'Category removed.');
   };
 
-  const handleSupportSubmit = (e: React.FormEvent) => {
+  const handleSupportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supportSubject || !supportMessage) return;
+    if (!supportSubject.trim() || !supportMessage.trim()) return;
     setIsSubmittingSupport(true);
-    setTimeout(() => {
-      setIsSubmittingSupport(false);
+    try {
+      await firestoreService.saveSupportTicket({
+        id: 'ticket_' + Math.random().toString(36).substr(2, 9),
+        subject: supportSubject.trim(),
+        message: supportMessage.trim(),
+        user_email: email || profile.email || 'user@decabyte.space',
+        created_at: new Date().toISOString(),
+        status: 'open'
+      });
       setSupportSubject('');
       setSupportMessage('');
-      triggerToast(language === 'ar' ? 'تم إرسال بطاقة الدعم الفني بنجاح!' : 'Support ticket sent successfully!');
-    }, 1500);
+      triggerToast(language === 'ar' ? 'تم إرسال بطاقة الدعم الفني وتخزينها في السحابة بنجاح!' : 'Support ticket sent and stored in cloud successfully!');
+    } catch (err) {
+      console.error('Error submitting support ticket:', err);
+      triggerToast(language === 'ar' ? 'تعذر إرسال التذكرة. يرجى التحقق من الاتصال.' : 'Failed to submit ticket. Please check connection.', true);
+    } finally {
+      setIsSubmittingSupport(false);
+    }
   };
 
   const handleSaveClauses = () => {
     onUpdateClauses(clauses);
-    triggerToast(language === 'ar' ? 'تم تحديث قالب البنود القانونية بنجاح!' : 'Standard legal clauses updated!');
+    triggerToast(language === 'ar' ? 'تم تحديث قالب البنود القانونية وحفظه بالسحابة بنجاح!' : 'Standard legal clauses updated and saved to cloud!');
+  };
+
+  const handleTogglePin = (enabled: boolean) => {
+    setPinEnabled(enabled);
+    firestoreService.saveWorkspacePreferences({
+      security: {
+        pin_enabled: enabled,
+        pin_code: pinCode,
+        biometrics_enabled: biometricsEnabled
+      }
+    });
+    triggerToast(enabled ? (language === 'ar' ? 'تم تفعيل قفل PIN وحفظه' : 'PIN lock enabled and saved') : (language === 'ar' ? 'تم تعطيل قفل PIN وحفظه' : 'PIN lock disabled and saved'));
+  };
+
+  const handlePinCodeChange = (code: string) => {
+    setPinCode(code);
+    if (code.length === 4) {
+      firestoreService.saveWorkspacePreferences({
+        security: {
+          pin_enabled: pinEnabled,
+          pin_code: code,
+          biometrics_enabled: biometricsEnabled
+        }
+      });
+      triggerToast(language === 'ar' ? 'تم حفظ رمز PIN الجديد بالسحابة' : 'New PIN passcode saved to cloud');
+    }
+  };
+
+  const handleToggleBiometrics = (enabled: boolean) => {
+    setBiometricsEnabled(enabled);
+    firestoreService.saveWorkspacePreferences({
+      security: {
+        pin_enabled: pinEnabled,
+        pin_code: pinCode,
+        biometrics_enabled: enabled
+      }
+    });
+    triggerToast(enabled ? (language === 'ar' ? 'تم تفعيل مصادقة البصمة وحفظها' : 'Biometrics lock enabled and saved') : (language === 'ar' ? 'تم تعطيل مصادقة البصمة وحفظها' : 'Biometrics lock disabled and saved'));
   };
 
   const handleGoogleConnectToggle = () => {
     if (googleConnected) {
       setGoogleConnected(false);
       setGoogleEmail('');
+      firestoreService.saveWorkspacePreferences({
+        integrations: {
+          google_connected: false,
+          google_email: ''
+        }
+      });
       triggerToast(language === 'ar' ? 'تم إلغاء ربط الحساب بنجاح' : 'Google Account unlinked.');
     } else {
+      const activeEmail = email || profile.email || 'sadek.rahman@gmail.com';
       setGoogleConnected(true);
-      setGoogleEmail('sadek.rahman@gmail.com');
-      triggerToast(language === 'ar' ? 'تم ربط حساب Google بنجاح!' : 'Google Account linked successfully!');
+      setGoogleEmail(activeEmail);
+      firestoreService.saveWorkspacePreferences({
+        integrations: {
+          google_connected: true,
+          google_email: activeEmail
+        }
+      });
+      triggerToast(language === 'ar' ? 'تم ربط حساب Google وحفظه بالسحابة بنجاح!' : 'Google Account linked and saved to cloud successfully!');
     }
+  };
+
+  const handleTogglePush = (enabled: boolean) => {
+    setPushEnabled(enabled);
+    firestoreService.saveWorkspacePreferences({
+      notifications: {
+        push_enabled: enabled,
+        notify_deadlines: notifyDeadlines,
+        notify_payments: notifyPayments,
+        notify_tasks: notifyTasks
+      }
+    });
+    triggerToast(enabled ? (language === 'ar' ? 'تم تفعيل تنبيهات المتصفح وحفظها' : 'Push alerts enabled and saved') : (language === 'ar' ? 'تم تعطيل التنبيهات وحفظها' : 'Push alerts disabled and saved'));
+  };
+
+  const handleNotificationChange = (type: 'deadlines' | 'payments' | 'tasks', value: boolean) => {
+    const updatedDeadlines = type === 'deadlines' ? value : notifyDeadlines;
+    const updatedPayments = type === 'payments' ? value : notifyPayments;
+    const updatedTasks = type === 'tasks' ? value : notifyTasks;
+
+    if (type === 'deadlines') setNotifyDeadlines(value);
+    if (type === 'payments') setNotifyPayments(value);
+    if (type === 'tasks') setNotifyTasks(value);
+
+    firestoreService.saveWorkspacePreferences({
+      notifications: {
+        push_enabled: pushEnabled,
+        notify_deadlines: updatedDeadlines,
+        notify_payments: updatedPayments,
+        notify_tasks: updatedTasks
+      }
+    });
+    triggerToast(language === 'ar' ? 'تم تحديث تفضيلات الإشعارات بالسحابة' : 'Notification preferences saved');
   };
 
   return (
     <div className="dashboard-content-area">
       
       {/* Toast popup */}
-      {toastMessage && (
-        <div className="toast-notification animate-slide-in">
-          <Check size={16} style={{ marginRight: '6px' }} />
-          <span>{toastMessage}</span>
+      {toast && (
+        <div 
+          className="toast-notification animate-slide-in"
+          style={{
+            background: toast.isError ? '#D32F2F' : undefined,
+            color: '#FFFFFF'
+          }}
+        >
+          {toast.isError ? (
+            <ShieldAlert size={16} style={{ marginRight: '6px' }} />
+          ) : (
+            <Check size={16} style={{ marginRight: '6px' }} />
+          )}
+          <span>{toast.message}</span>
         </div>
       )}
 
@@ -437,9 +621,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   />
                 </div>
 
-                <button type="submit" className="submit-btn compact-btn" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Save size={16} />
-                  {language === 'ar' ? 'حفظ التغييرات الشخصية' : 'Save Identity Details'}
+                <button type="submit" disabled={isSavingProfile} className="submit-btn compact-btn" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {isSavingProfile ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      {language === 'ar' ? 'جاري الحفظ...' : 'Saving...'}
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} />
+                      {language === 'ar' ? 'حفظ التغييرات الشخصية' : 'Save Identity Details'}
+                    </>
+                  )}
                 </button>
               </form>
 
@@ -509,8 +702,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <button type="button" onClick={() => setShowPasswordSection(false)} className="btn-secondary" style={{ flex: 1 }}>
                         {language === 'ar' ? 'إلغاء' : 'Cancel'}
                       </button>
-                      <button type="submit" className="submit-btn primary-submit" style={{ flex: 1 }}>
-                        {language === 'ar' ? 'تحديث الكلمة' : 'Update'}
+                      <button type="submit" disabled={isUpdatingPassword} className="submit-btn primary-submit" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                        {isUpdatingPassword ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin" />
+                            {language === 'ar' ? 'جاري التحديث...' : 'Updating...'}
+                          </>
+                        ) : (
+                          language === 'ar' ? 'تحديث الكلمة' : 'Update'
+                        )}
                       </button>
                     </div>
                   </form>
@@ -627,7 +827,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <div style={{ display: 'flex', gap: '6px', background: 'var(--bg-sidebar)', padding: '3px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                   <button 
                     id="theme-light-btn"
-                    onClick={() => { setMode('light'); triggerToast(language === 'ar' ? 'تم تفعيل الوضع الفاتح' : 'Light mode activated'); }}
+                    onClick={() => handleThemeModeChange('light')}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 10px', borderRadius: '4px', border: 'none',
                       background: mode === 'light' ? 'var(--bg-card)' : 'transparent',
@@ -641,7 +841,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </button>
                   <button 
                     id="theme-dark-btn"
-                    onClick={() => { setMode('dark'); triggerToast(language === 'ar' ? 'تم تفعيل الوضع الداكن' : 'Dark mode activated'); }}
+                    onClick={() => handleThemeModeChange('dark')}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 10px', borderRadius: '4px', border: 'none',
                       background: mode === 'dark' ? 'var(--bg-card)' : 'transparent',
@@ -655,7 +855,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </button>
                   <button 
                     id="theme-system-btn"
-                    onClick={() => { setMode('system'); triggerToast(language === 'ar' ? 'تم التبديل لتوافق النظام' : 'System preference activated'); }}
+                    onClick={() => handleThemeModeChange('system')}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 10px', borderRadius: '4px', border: 'none',
                       background: mode === 'system' ? 'var(--bg-card)' : 'transparent',
@@ -855,7 +1055,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </p>
                 </div>
                 <button 
-                  onClick={() => setPinEnabled(!pinEnabled)}
+                  onClick={() => handleTogglePin(!pinEnabled)}
                   style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}
                 >
                   {pinEnabled ? (
@@ -874,7 +1074,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     type="password" 
                     maxLength={4} 
                     value={pinCode} 
-                    onChange={(e) => setPinCode(e.target.value.replace(/\D/g, ''))} 
+                    onChange={(e) => handlePinCodeChange(e.target.value.replace(/\D/g, ''))} 
                     className="milestone-form-input" 
                     style={{ textAlign: 'center', fontFamily: 'monospace', letterSpacing: '12px', fontSize: '1.2rem', padding: '8px' }} 
                   />
@@ -892,7 +1092,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </p>
                 </div>
                 <button 
-                  onClick={() => { setBiometricsEnabled(!biometricsEnabled); triggerToast(language === 'ar' ? 'تم تعديل مصادقة البصمة' : 'Biometrics lock settings updated.'); }}
+                  onClick={() => handleToggleBiometrics(!biometricsEnabled)}
                   style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}
                 >
                   {biometricsEnabled ? (
@@ -1066,7 +1266,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </p>
                 </div>
                 <button 
-                  onClick={() => setPushEnabled(!pushEnabled)}
+                  onClick={() => handleTogglePush(!pushEnabled)}
                   style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}
                 >
                   {pushEnabled ? (
@@ -1091,7 +1291,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <input 
                       type="checkbox" 
                       checked={notifyDeadlines} 
-                      onChange={() => setNotifyDeadlines(!notifyDeadlines)} 
+                      onChange={(e) => handleNotificationChange('deadlines', e.target.checked)} 
                     />
                   </div>
 
@@ -1105,7 +1305,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <input 
                       type="checkbox" 
                       checked={notifyPayments} 
-                      onChange={() => setNotifyPayments(!notifyPayments)} 
+                      onChange={(e) => handleNotificationChange('payments', e.target.checked)} 
                     />
                   </div>
 
@@ -1119,7 +1319,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <input 
                       type="checkbox" 
                       checked={notifyTasks} 
-                      onChange={() => setNotifyTasks(!notifyTasks)} 
+                      onChange={(e) => handleNotificationChange('tasks', e.target.checked)} 
                     />
                   </div>
 

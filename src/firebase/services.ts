@@ -1,13 +1,14 @@
 import { 
   collection, 
   getDocs, 
+  getDoc,
   doc, 
   setDoc, 
   deleteDoc,
   onSnapshot 
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './config';
-import type { Client, Project, Expense, Invoice, Task, Payment, Activity, Milestone, Contract } from '../types';
+import type { Client, Project, Expense, Invoice, Task, Payment, Activity, Milestone, Contract, WorkspacePreferences } from '../types';
 
 /**
  * Generic Firestore collection fetcher
@@ -136,5 +137,70 @@ export const firestoreService = {
   subscribeContracts: (cb: (c: Contract[]) => void) => subscribeCollection<Contract>('contracts', cb),
   saveContract: (contract: Contract) => saveDocument('contracts', contract),
   deleteContract: (id: string) => removeDocument('contracts', id),
+
+  // DecaByte Workspace Preferences (Backend Persistence)
+  getWorkspacePreferences: async (id = 'workspace_default'): Promise<WorkspacePreferences | null> => {
+    if (!isFirebaseConfigured || !db) return null;
+    try {
+      const docRef = doc(db, 'settings', id);
+      const snapshot = await getDoc(docRef);
+      if (snapshot.exists()) {
+        return { ...snapshot.data(), id: snapshot.id } as WorkspacePreferences;
+      }
+      return null;
+    } catch (err) {
+      console.error('Error fetching workspace preferences from Firestore:', err);
+      return null;
+    }
+  },
+
+  subscribeWorkspacePreferences: (
+    callback: (prefs: WorkspacePreferences | null) => void,
+    id = 'workspace_default'
+  ): (() => void) => {
+    if (!isFirebaseConfigured || !db) return () => {};
+    try {
+      const docRef = doc(db, 'settings', id);
+      return onSnapshot(
+        docRef,
+        (snapshot) => {
+          if (snapshot.exists()) {
+            callback({ ...snapshot.data(), id: snapshot.id } as WorkspacePreferences);
+          } else {
+            callback(null);
+          }
+        },
+        (err) => {
+          console.warn('Firestore preferences listener:', err.message);
+        }
+      );
+    } catch (err) {
+      console.error('Error setting up workspace preferences listener:', err);
+      return () => {};
+    }
+  },
+
+  saveWorkspacePreferences: async (
+    prefs: Partial<WorkspacePreferences>,
+    id = 'workspace_default'
+  ): Promise<void> => {
+    if (!isFirebaseConfigured || !db) return;
+    try {
+      const docRef = doc(db, 'settings', id);
+      const cleanData = JSON.parse(JSON.stringify({ 
+        ...prefs, 
+        id, 
+        updated_at: new Date().toISOString() 
+      }));
+      await setDoc(docRef, cleanData, { merge: true });
+    } catch (err) {
+      console.error('Error saving workspace preferences to Firestore:', err);
+    }
+  },
+
+  // Support Tickets
+  saveSupportTicket: async (ticket: { id: string; subject: string; message: string; user_email?: string; created_at: string; status: string }): Promise<void> => {
+    return saveDocument('support_tickets', ticket);
+  }
 };
 

@@ -18,7 +18,8 @@ import { AddPaymentModal } from './components/AddPaymentModal';
 import { authService } from './firebase/auth';
 import { firestoreService } from './firebase/services';
 import { isFirebaseConfigured } from './firebase/config';
-import type { Client, Project, Payment, Expense, Activity, Task, Invoice, Milestone, Contract } from './types';
+import { useTheme } from './core';
+import type { Client, Project, Payment, Expense, Activity, Task, Invoice, Milestone, Contract, FreelancerProfile } from './types';
 
 const defaultProfile = {
   name: 'Sadek Rahman',
@@ -33,8 +34,28 @@ const defaultClauses = `1. CONFIDENTIALITY: The Developer agrees to keep all pro
 3. INTELLECTUAL PROPERTY: Full copyright ownership of assets transfers to the Client upon total clearance of project budget.
 4. WARRANTY SUPPORT: Developer provides a standard 30-day bug fixing warranty post deployment.`;
 
+const FONT_THEMES_MAP: Record<string, { sans: string; ar: string }> = {
+  satoshi: {
+    sans: "'Satoshi', 'Outfit', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif",
+    ar: "'Alexandria', 'Tajawal', system-ui, -apple-system, sans-serif"
+  },
+  outfit: {
+    sans: "'Outfit', 'Satoshi', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif",
+    ar: "'Alexandria', 'Tajawal', system-ui, -apple-system, sans-serif"
+  },
+  geist: {
+    sans: "'Geist', 'Satoshi', system-ui, -apple-system, sans-serif",
+    ar: "'Alexandria', 'Tajawal', system-ui, -apple-system, sans-serif"
+  },
+  jakarta: {
+    sans: "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif",
+    ar: "'Tajawal', system-ui, -apple-system, sans-serif"
+  }
+};
+
 const AuthAppContent: React.FC = () => {
   const { toggleLanguage, language } = useLanguage();
+  const { setMode } = useTheme();
   
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -43,27 +64,9 @@ const AuthAppContent: React.FC = () => {
   // Initialize saved typography theme
   useEffect(() => {
     const savedTheme = localStorage.getItem('indflow_font_theme');
-    const themes: Record<string, { sans: string; ar: string }> = {
-      satoshi: {
-        sans: "'Satoshi', 'Outfit', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif",
-        ar: "'Alexandria', 'Tajawal', system-ui, -apple-system, sans-serif"
-      },
-      outfit: {
-        sans: "'Outfit', 'Satoshi', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif",
-        ar: "'Alexandria', 'Tajawal', system-ui, -apple-system, sans-serif"
-      },
-      geist: {
-        sans: "'Geist', 'Satoshi', system-ui, -apple-system, sans-serif",
-        ar: "'Alexandria', 'Tajawal', system-ui, -apple-system, sans-serif"
-      },
-      jakarta: {
-        sans: "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif",
-        ar: "'Tajawal', system-ui, -apple-system, sans-serif"
-      }
-    };
-    if (savedTheme && themes[savedTheme]) {
-      document.documentElement.style.setProperty('--font-sans', themes[savedTheme].sans);
-      document.documentElement.style.setProperty('--font-ar', themes[savedTheme].ar);
+    if (savedTheme && FONT_THEMES_MAP[savedTheme]) {
+      document.documentElement.style.setProperty('--font-sans', FONT_THEMES_MAP[savedTheme].sans);
+      document.documentElement.style.setProperty('--font-ar', FONT_THEMES_MAP[savedTheme].ar);
     }
   }, []);
 
@@ -113,6 +116,23 @@ const AuthAppContent: React.FC = () => {
       const unsubActivities = firestoreService.subscribeActivities((items) => setActivities(items));
       const unsubMilestones = firestoreService.subscribeMilestones((items) => setMilestones(items));
       const unsubContracts = firestoreService.subscribeContracts((items) => setContracts(items));
+      const unsubSettings = firestoreService.subscribeWorkspacePreferences((prefs) => {
+        if (prefs) {
+          if (prefs.profile) setFreelancerProfile(prefs.profile);
+          if (prefs.contract_clauses) setContractClauses(prefs.contract_clauses);
+          if (prefs.categories && Array.isArray(prefs.categories) && prefs.categories.length > 0) {
+            setProjectCategories(prefs.categories);
+          }
+          if (prefs.font_theme && FONT_THEMES_MAP[prefs.font_theme]) {
+            localStorage.setItem('indflow_font_theme', prefs.font_theme);
+            document.documentElement.style.setProperty('--font-sans', FONT_THEMES_MAP[prefs.font_theme].sans);
+            document.documentElement.style.setProperty('--font-ar', FONT_THEMES_MAP[prefs.font_theme].ar);
+          }
+          if (prefs.theme_mode && (prefs.theme_mode === 'light' || prefs.theme_mode === 'dark' || prefs.theme_mode === 'system')) {
+            setMode(prefs.theme_mode);
+          }
+        }
+      });
 
       return () => {
         unsubClients();
@@ -124,6 +144,7 @@ const AuthAppContent: React.FC = () => {
         unsubActivities();
         unsubMilestones();
         unsubContracts();
+        unsubSettings();
       };
     }
   }, [isAuthenticated]);
@@ -196,6 +217,24 @@ const AuthAppContent: React.FC = () => {
       `تم تحديث حالة المشروع '${normalizedProject.name}' إلى ${normalizedProject.status}`,
       'project'
     );
+  };
+
+  const handleUpdateProfile = (newProfile: FreelancerProfile) => {
+    setFreelancerProfile(newProfile);
+    firestoreService.saveWorkspacePreferences({ profile: newProfile });
+    logActivity(`Workspace profile updated`, `تم تحديث بيانات الملف الشخصي لمساحة العمل`, 'client');
+  };
+
+  const handleUpdateClauses = (newClauses: string) => {
+    setContractClauses(newClauses);
+    firestoreService.saveWorkspacePreferences({ contract_clauses: newClauses });
+    logActivity(`Legal contract clauses updated`, `تم تحديث البنود القانونية للعقود`, 'client');
+  };
+
+  const handleUpdateCategories = (newCategories: string[]) => {
+    setProjectCategories(newCategories);
+    firestoreService.saveWorkspacePreferences({ categories: newCategories });
+    logActivity(`Project categories updated`, `تم تحديث تصنيفات المشاريع`, 'project');
   };
 
   const handleDeleteProject = (projectId: string) => {
@@ -581,13 +620,13 @@ const AuthAppContent: React.FC = () => {
             {activeTab === 'settings' && (
               <SettingsView 
                 profile={freelancerProfile}
-                onUpdateProfile={setFreelancerProfile}
+                onUpdateProfile={handleUpdateProfile}
                 contractClauses={contractClauses}
-                onUpdateClauses={setContractClauses}
+                onUpdateClauses={handleUpdateClauses}
                 toggleLanguage={toggleLanguage}
                 language={language}
                 categories={projectCategories}
-                onUpdateCategories={setProjectCategories}
+                onUpdateCategories={handleUpdateCategories}
                 onExportBackup={handleExportBackup}
                 onLogoutAllDevices={handleLogoutAllDevices}
               />

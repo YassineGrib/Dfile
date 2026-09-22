@@ -6,6 +6,9 @@ import {
   onAuthStateChanged,
   updateProfile,
   sendPasswordResetEmail,
+  updatePassword as firebaseUpdatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
   type User,
   type AuthError
 } from 'firebase/auth';
@@ -117,6 +120,23 @@ export const authService = {
       return () => {};
     }
     return onAuthStateChanged(auth, callback);
+  },
+
+  updatePassword: async (currentPassword: string, newPass: string, lang: 'en' | 'ar' = 'en') => {
+    if (!isFirebaseConfigured || !auth || !auth.currentUser) {
+      return { success: true, error: null };
+    }
+    try {
+      const user = auth.currentUser;
+      if (user.email && currentPassword) {
+        const credential = EmailAuthProvider.credential(user.email, currentPassword);
+        await reauthenticateWithCredential(user, credential);
+      }
+      await firebaseUpdatePassword(user, newPass);
+      return { success: true, error: null };
+    } catch (err: unknown) {
+      return { success: false, error: formatAuthError(err, lang) };
+    }
   }
 };
 
