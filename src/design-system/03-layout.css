@@ -68,8 +68,10 @@ html[dir="ltr"] .lang-switcher-container { right: 24px; }
 /* ── Workspace App Layout ── */
 .workspace-layout {
   display: flex;
-  min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
   width: 100%;
+  overflow: hidden;
 }
 
 html[dir="rtl"] .workspace-layout {
@@ -79,10 +81,12 @@ html[dir="rtl"] .workspace-layout {
 .workspace-main-panel {
   flex: 1;
   background-color: var(--bg-canvas);
-  min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  overflow-x: hidden;
   position: relative;
 }
 

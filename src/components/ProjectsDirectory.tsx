@@ -20,6 +20,7 @@ interface ProjectsDirectoryProps {
   onEditProject: (project: Project) => void;
   onDeleteProject: (projectId: string) => void;
   onOpenAddProject: () => void;
+  onOpenAddPayment?: (projectId?: string, clientId?: string) => void;
 }
 
 const STATUS_CONFIG: Record<ProjectStatus, { label: string; labelAr: string; color: string; bg: string; Icon: React.FC<{ size?: number }> }> = {
@@ -66,6 +67,7 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
   tasks,
   onEditProject,
   onDeleteProject,
+  onOpenAddPayment,
 }) => {
   const { language } = useLanguage();
 
@@ -428,7 +430,7 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
             const StatusIcon = cfg.Icon;
             const catColor = getCategoryColor(project.category);
             const daysTag = getDaysLeftLabel(stats.daysLeft, project.status);
-            const remaining = Math.max(0, project.price_dzd - stats.collected);
+            const remaining = project.status === 'Cancelled' ? 0 : Math.max(0, project.price_dzd - stats.collected);
             const isCompletedOrDelivered = project.status === 'Completed' || project.status === 'Delivered';
             const statusColor = cfg ? cfg.color : '#6366f1';
             const effectiveProgress = isCompletedOrDelivered
@@ -663,7 +665,7 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
                 const catColor = getCategoryColor(project.category);
                 const stats = getProjectStats(project.id);
                 const daysTag = getDaysLeftLabel(stats.daysLeft, project.status);
-                const rowRest = Math.max(0, project.price_dzd - stats.collected);
+                const rowRest = project.status === 'Cancelled' ? 0 : Math.max(0, project.price_dzd - stats.collected);
                 const isCompletedOrDelivered = project.status === 'Completed' || project.status === 'Delivered';
                 const effectiveProgress = isCompletedOrDelivered 
                   ? 100 
@@ -773,7 +775,30 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
                     </span>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {onOpenAddPayment && (
+                    <button 
+                      type="button"
+                      onClick={() => onOpenAddPayment(selectedProject.id, selectedProject.client_id)} 
+                      style={{ 
+                        padding: '7px 12px', 
+                        border: '1px solid #10B981', 
+                        borderRadius: '8px', 
+                        background: '#E2FFEF', 
+                        color: '#0E4F2F', 
+                        cursor: 'pointer', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '6px', 
+                        fontSize: '0.8rem', 
+                        fontWeight: 500 
+                      }}
+                      title={language === 'ar' ? 'تسجيل دفعة لهذا المشروع' : 'Record Payment for this project'}
+                    >
+                      <Plus size={13} />
+                      <span>{language === 'ar' ? 'تسجيل دفعة' : 'Add Payment'}</span>
+                    </button>
+                  )}
                   <button onClick={e => handleStartEdit(selectedProject, e)} style={{ padding: '7px 12px', border: '1.5px solid var(--border-color)', borderRadius: '8px', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem', fontWeight: 500 }}>
                     <Edit2 size={14} />
                     {language === 'ar' ? 'تعديل' : 'Edit'}
@@ -830,12 +855,36 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
 
                 {/* Financial Details */}
                 <div className="ledger-details-section">
-                  <h4 className="ledger-sub-title">{language === 'ar' ? 'البيانات المالية' : 'Financial Summary'}</h4>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <h4 className="ledger-sub-title" style={{ margin: 0 }}>{language === 'ar' ? 'البيانات المالية' : 'Financial Summary'}</h4>
+                    {onOpenAddPayment && (
+                      <button 
+                        type="button"
+                        onClick={() => onOpenAddPayment(selectedProject.id, selectedProject.client_id)}
+                        style={{ 
+                          background: 'var(--bg-canvas)', 
+                          border: '1px solid var(--border-color)', 
+                          borderRadius: 'var(--radius-sm)', 
+                          padding: '4px 10px', 
+                          fontSize: '0.75rem', 
+                          fontWeight: 500, 
+                          color: '#0E4F2F', 
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px'
+                        }}
+                      >
+                        <Plus size={12} />
+                        <span>{language === 'ar' ? 'إضافة دفعة مالية' : 'Add Payment'}</span>
+                      </button>
+                    )}
+                  </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
                     {[
                       { label: language === 'ar' ? 'قيمة العقد' : 'Contract Value', value: `${selectedProject.price_dzd.toLocaleString()} DZ`, color: '#6366f1' },
                       { label: language === 'ar' ? 'المحصّل' : 'Collected', value: `${stats.collected.toLocaleString()} DZ`, color: '#22c55e' },
-                      { label: language === 'ar' ? 'المتبقي للتحصيل' : 'Outstanding Balance', value: `${Math.max(0, selectedProject.price_dzd - stats.collected).toLocaleString()} DZ`, color: selectedProject.price_dzd - stats.collected > 0 ? '#f97316' : '#22c55e' },
+                      { label: language === 'ar' ? 'المتبقي للتحصيل' : 'Outstanding Balance', value: `${(selectedProject.status === 'Cancelled' ? 0 : Math.max(0, selectedProject.price_dzd - stats.collected)).toLocaleString()} DZ`, color: (selectedProject.status !== 'Cancelled' && selectedProject.price_dzd - stats.collected > 0) ? '#f97316' : '#22c55e' },
                       { label: language === 'ar' ? 'المصاريف' : 'Expenses', value: `${stats.spent.toLocaleString()} DZ`, color: '#ef4444' },
                       { label: language === 'ar' ? 'صافي الربح' : 'Net Profit', value: `${stats.profit.toLocaleString()} DZ`, color: stats.profit >= 0 ? '#22c55e' : '#ef4444' },
                       { label: language === 'ar' ? 'هامش الربح' : 'Net Margin', value: `${stats.margin}%`, color: stats.margin >= 60 ? '#22c55e' : stats.margin >= 30 ? '#f97316' : '#ef4444' },

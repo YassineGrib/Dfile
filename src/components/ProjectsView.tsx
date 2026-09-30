@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLanguage } from './LanguageContext';
 import type { Project, Client, Task, Payment, ProjectStatus } from '../types';
 import { UserAvatar } from './UserAvatar';
+import { Plus } from 'lucide-react';
 
 interface ProjectsViewProps {
   projects: Project[];
@@ -11,6 +12,7 @@ interface ProjectsViewProps {
   onUpdateTask: (task: Task) => void;
   onUpdateProject: (project: Project) => void;
   onOpenAddProject: () => void;
+  onOpenAddPayment?: (projectId?: string, clientId?: string) => void;
 }
 
 export const ProjectsView: React.FC<ProjectsViewProps> = ({
@@ -21,6 +23,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   onUpdateTask,
   onUpdateProject,
   onOpenAddProject,
+  onOpenAddPayment,
 }) => {
   const { language } = useLanguage();
 
@@ -722,9 +725,34 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                   <span className="text-bold">{selectedProject.name}</span>
                 </div>
               </div>
-              <button onClick={() => setSelectedProject(null)} className="close-slide-over-btn" aria-label="Close">
-                ✕
-              </button>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {onOpenAddPayment && (
+                  <button 
+                    type="button"
+                    onClick={() => onOpenAddPayment(selectedProject.id, selectedProject.client_id)} 
+                    style={{ 
+                      padding: '6px 12px', 
+                      border: '1px solid #10B981', 
+                      borderRadius: '8px', 
+                      background: '#E2FFEF', 
+                      color: '#0E4F2F', 
+                      cursor: 'pointer', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '5px', 
+                      fontSize: '0.8rem', 
+                      fontWeight: 500 
+                    }}
+                    title={language === 'ar' ? 'تسجيل دفعة لهذا المشروع' : 'Record Payment for this project'}
+                  >
+                    <Plus size={13} />
+                    <span>{language === 'ar' ? 'تسجيل دفعة' : 'Add Payment'}</span>
+                  </button>
+                )}
+                <button onClick={() => setSelectedProject(null)} className="close-slide-over-btn" aria-label="Close">
+                  ✕
+                </button>
+              </div>
             </div>
 
             {/* Content Body */}
@@ -761,8 +789,31 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                     <span>DZ</span>
                     <span>{language === 'ar' ? 'الميزانية' : 'Budget'}</span>
                   </div>
-                  <div className="property-item-value font-bold text-green">
-                    {selectedProject.price_dzd.toLocaleString()} DZ
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="property-item-value font-bold text-green">
+                      {selectedProject.price_dzd.toLocaleString()} DZ
+                    </span>
+                    {onOpenAddPayment && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenAddPayment(selectedProject.id, selectedProject.client_id)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#0E4F2F',
+                          fontSize: '0.74rem',
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          textDecoration: 'underline'
+                        }}
+                      >
+                        <Plus size={11} />
+                        {language === 'ar' ? 'دفعة جديدة' : 'New payment'}
+                      </button>
+                    )}
                   </div>
                 </div>
 

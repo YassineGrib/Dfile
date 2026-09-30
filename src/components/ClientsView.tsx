@@ -256,9 +256,26 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                 className="client-bento-card"
                 onClick={() => setSelectedClient(client)}
               >
-                {/* Upper row: Avatar & Profile Actions */}
+                {/* Bottom-Right Watermark Character (Subtle, Organic Animated) */}
+                <div className="client-card-watermark" aria-hidden="true">
+                  <div className="watermark-animator">
+                    <UserAvatar 
+                      name={client.name} 
+                      size={104} 
+                      variant="watermark" 
+                      animate="none" 
+                    />
+                  </div>
+                </div>
+
+                {/* Upper row: Status Indicator & Profile Actions */}
                 <div className="card-top-header">
-                  <UserAvatar name={client.name} size={46} animate="hover" />
+                  <span className={`client-status-badge ${stats.activeProjectsCount > 0 ? 'status-active' : 'status-idle'}`}>
+                    <span className="status-indicator-dot"></span>
+                    {stats.activeProjectsCount > 0 
+                      ? (language === 'ar' ? 'نشط حالياً' : 'Active') 
+                      : (language === 'ar' ? 'سجل محفوظ' : 'Archived')}
+                  </span>
                   <div className="card-action-icons">
                     <button 
                       onClick={(e) => handleStartEdit(client, e)}

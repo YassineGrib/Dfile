@@ -5,7 +5,7 @@ import type { Project, Client, Payment, FreelancerProfile } from '../types';
 import { 
   LayoutDashboard, Users, Calendar, 
   Settings, Plus, ChevronDown, ChevronRight,
-  ClipboardList, Landmark, LayoutGrid, Banknote
+  ClipboardList, Landmark, LayoutGrid, Banknote, Receipt
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -27,7 +27,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onTabChange,
   onLogout,
   onOpenAddProject,
+  onOpenAddClient,
   onOpenAddExpense,
+  onOpenAddPayment,
   projects,
   clients,
   payments = [],
@@ -35,13 +37,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { language } = useLanguage();
 
-  // Collapsible workspace section states
-  const [isActiveProjectsOpen, setIsActiveProjectsOpen] = useState(true);
-  const [isInvoicesOpen, setIsInvoicesOpen] = useState(true);
-  const [isExpensesOpen, setIsExpensesOpen] = useState(false);
-
-  // Take first 3 projects for sidebar rendering
-  const sidebarProjects = projects.slice(0, 3);
+  // Collapsible section state for Invoices
+  const [isInvoicesOpen, setIsInvoicesOpen] = useState(false);
 
   const displayName = userProfile?.name?.trim() || 'Workspace User';
   const displayRole = userProfile?.designation?.trim() || (language === 'ar' ? 'حساب فريلانس' : 'Freelance Plan');
@@ -81,7 +78,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Group 1: OVERVIEW & CLIENTS */}
-      <div className="sidebar-section-container" style={{ marginBottom: '16px' }}>
+      <div className="sidebar-section-container">
         <span className="section-title-label" style={{ padding: '0 12px', marginBottom: '4px' }}>
           {language === 'ar' ? 'نظرة عامة والجهات' : 'Overview & Clients'}
         </span>
@@ -128,11 +125,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
             </div>
           </button>
+
+          {/* Sub-action: Add Client */}
+          <div 
+            onClick={onOpenAddClient} 
+            className="nav-sub-action-btn"
+            title={language === 'ar' ? 'إضافة عميل جديد' : 'Add Client'}
+          >
+            <Plus size={12} className="sub-action-icon" />
+            <span>{language === 'ar' ? 'إضافة عميل' : 'Add Client'}</span>
+          </div>
         </nav>
       </div>
 
       {/* Group 2: PLANNING & PROJECTS */}
-      <div className="sidebar-section-container" style={{ marginBottom: '16px' }}>
+      <div className="sidebar-section-container">
         <div className="section-header-row" style={{ padding: '0 12px', marginBottom: '4px' }}>
           <span className="section-title-label">
             {language === 'ar' ? 'المشاريع والجدولة' : 'Planning & Projects'}
@@ -157,6 +164,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span className="nav-badge-purple">{projects.length}</span>
           </button>
 
+          {/* Sub-action: Add Project directly under All Projects */}
+          <div 
+            onClick={onOpenAddProject} 
+            className="nav-sub-action-btn"
+            title={language === 'ar' ? 'إضافة مشروع جديد' : 'Add Project'}
+          >
+            <Plus size={12} className="sub-action-icon" />
+            <span>{language === 'ar' ? 'إضافة مشروع' : 'Add Project'}</span>
+          </div>
+
           {/* Calendar & Deadlines */}
           <button
             onClick={() => onTabChange('calendar')}
@@ -172,42 +189,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="nav-badge-orange">{projects.filter(p => Boolean(p.end_date)).length}</span>
             )}
           </button>
-
-          {/* Active Projects Collapsible Folder */}
-          <div className={`workspace-folder-group ${isActiveProjectsOpen ? 'open' : ''}`}>
-            <button 
-              onClick={() => setIsActiveProjectsOpen(!isActiveProjectsOpen)} 
-              className="folder-toggle-btn"
-              style={{ display: 'flex', alignItems: 'center', width: '100%', padding: '8px 12px' }}
-            >
-              <span style={{ display: 'inline-flex', transform: isActiveProjectsOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}>
-                <ChevronRight size={12} />
-              </span>
-              <span className="folder-label" style={{ flex: 1, paddingLeft: '6px' }}>
-                {language === 'ar' ? 'المشاريع النشطة' : 'Active Projects'}
-              </span>
-            </button>
-            
-            {isActiveProjectsOpen && (
-              <div className="workspace-tree-nested" style={{ paddingLeft: '24px' }}>
-                {sidebarProjects.map((p) => (
-                  <div key={p.id} className="tree-node-item" onClick={() => onTabChange('projects')} style={{ cursor: 'pointer', padding: '4px 0', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span className="tree-square-bullet" style={{ width: '4px', height: '4px', background: 'var(--text-muted)', borderRadius: '50%' }}></span>
-                    <span className="tree-item-label">{p.name}</span>
-                  </div>
-                ))}
-                <div className="tree-node-item add-new-node" onClick={onOpenAddProject} style={{ cursor: 'pointer', padding: '4px 0', fontSize: '0.82rem', color: 'var(--accent-orange)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span className="tree-plus-icon">+</span>
-                  <span className="tree-item-label">{language === 'ar' ? 'إضافة مشروع' : 'Add Project'}</span>
-                </div>
-              </div>
-            )}
-          </div>
         </nav>
       </div>
 
       {/* Group 3: FINANCIALS & AGREEMENTS */}
-      <div className="sidebar-section-container" style={{ marginBottom: '16px' }}>
+      <div className="sidebar-section-container">
         <span className="section-title-label" style={{ padding: '0 12px', marginBottom: '4px' }}>
           {language === 'ar' ? 'المالية والاتفاقيات' : 'Financials & Contracts'}
         </span>
@@ -232,6 +218,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </button>
 
+          {/* Sub-action: Add Payment directly under Payments */}
+          {onOpenAddPayment && (
+            <div 
+              onClick={onOpenAddPayment} 
+              className="nav-sub-action-btn"
+              title={language === 'ar' ? 'تسجيل دفعة نقدية جديدة' : 'Add Payment'}
+            >
+              <Plus size={12} className="sub-action-icon" />
+              <span>{language === 'ar' ? 'تسجيل دفعة' : 'Add Payment'}</span>
+            </div>
+          )}
+
           {/* Contracts & AI Builder */}
           <button
             id="sidebarContractsBtn"
@@ -251,7 +249,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button 
               onClick={() => setIsInvoicesOpen(!isInvoicesOpen)} 
               className="folder-toggle-btn"
-              style={{ display: 'flex', alignItems: 'center', width: '100%', padding: '8px 12px' }}
             >
               <span style={{ display: 'inline-flex', transform: isInvoicesOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}>
                 <ChevronRight size={12} />
@@ -275,37 +272,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
 
-          {/* Expenses & Outlays Collapsible */}
-          <div className={`workspace-folder-group ${isExpensesOpen ? 'open' : ''}`}>
-            <button 
-              onClick={() => setIsExpensesOpen(!isExpensesOpen)} 
-              className="folder-toggle-btn"
-              style={{ display: 'flex', alignItems: 'center', width: '100%', padding: '8px 12px' }}
-            >
-              <span style={{ display: 'inline-flex', transform: isExpensesOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}>
-                <ChevronRight size={12} />
-              </span>
-              <span className="folder-label" style={{ flex: 1, paddingLeft: '6px' }}>
-                {language === 'ar' ? 'المصاريف والتكاليف' : 'Expenses & Fees'}
-              </span>
-            </button>
-            
-            {isExpensesOpen && (
-              <div className="workspace-tree-nested" style={{ paddingLeft: '24px' }}>
-                <div className="tree-node-item" onClick={() => onTabChange('expenses')} style={{ cursor: 'pointer', padding: '4px 0', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span className="tree-square-bullet" style={{ width: '4px', height: '4px', background: 'var(--text-muted)', borderRadius: '50%' }}></span>
-                  <span className="tree-item-label">Software Tools</span>
-                </div>
-                <div className="tree-node-item" onClick={() => onTabChange('expenses')} style={{ cursor: 'pointer', padding: '4px 0', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span className="tree-square-bullet" style={{ width: '4px', height: '4px', background: 'var(--text-muted)', borderRadius: '50%' }}></span>
-                  <span className="tree-item-label">General Outlays</span>
-                </div>
-                <div className="tree-node-item add-new-node" onClick={onOpenAddExpense} style={{ cursor: 'pointer', padding: '4px 0', fontSize: '0.82rem', color: 'var(--accent-orange)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span className="tree-plus-icon">+</span>
-                  <span className="tree-item-label">{language === 'ar' ? 'سجل مصاريف' : 'Add Expense'}</span>
-                </div>
-              </div>
-            )}
+          {/* Expenses & Fees as a Direct Navigation Button */}
+          <button
+            id="sidebarExpensesBtn"
+            onClick={() => onTabChange('expenses')}
+            className={`nav-btn ${activeTab === 'expenses' ? 'active' : ''}`}
+          >
+            <span className="nav-icon">
+              <Receipt size={16} />
+            </span>
+            <span className="nav-label">
+              {language === 'ar' ? 'المصاريف والتكاليف' : 'Expenses & Fees'}
+            </span>
+          </button>
+
+          {/* Sub-action: Add Expense directly under Expenses */}
+          <div 
+            onClick={onOpenAddExpense} 
+            className="nav-sub-action-btn"
+            title={language === 'ar' ? 'تسجيل مصروف جديد' : 'Add Expense'}
+          >
+            <Plus size={12} className="sub-action-icon" />
+            <span>{language === 'ar' ? 'تسجيل مصروف' : 'Add Expense'}</span>
           </div>
         </nav>
       </div>
@@ -315,9 +303,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <span className="section-title-label" style={{ padding: '0 12px', marginBottom: '4px' }}>
           {language === 'ar' ? 'النظام والأدوات' : 'System & Tools'}
         </span>
-        <div className="utilities-links-list" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        <div className="utilities-links-list">
           {/* CCP / PDF Import */}
-          <button onClick={() => onTabChange('invoices')} className="utility-link-btn" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px' }}>
+          <button onClick={() => onTabChange('invoices')} className="utility-link-btn">
             <span className="utility-icon">
               <Landmark size={16} />
             </span>
@@ -327,7 +315,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
 
           {/* Settings */}
-          <button id="sidebarSettingsBtn" onClick={() => onTabChange('settings')} className="utility-link-btn" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px' }}>
+          <button id="sidebarSettingsBtn" onClick={() => onTabChange('settings')} className="utility-link-btn">
             <span className="utility-icon">
               <Settings size={16} />
             </span>

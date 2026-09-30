@@ -36,7 +36,12 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
   const metrics = useMemo(() => {
     const totalReceived = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
     const totalCommitted = projects.reduce((sum, p) => sum + (p.price_dzd || 0), 0);
-    const totalPending = Math.max(0, totalCommitted - totalReceived);
+    const totalPending = projects
+      .filter((p) => p.status !== 'Cancelled')
+      .reduce((sum, p) => {
+        const paid = payments.filter((pm) => pm.project_id === p.id).reduce((s, pm) => s + (pm.amount || 0), 0);
+        return sum + Math.max(0, (p.price_dzd || 0) - paid);
+      }, 0);
 
     const now = new Date();
     const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;

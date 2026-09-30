@@ -94,3 +94,18 @@
   100% { transform: translateY(-3px); }
 }
 
+/* Watermark blobatar variant */
+.user-blobatar-watermark {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+}
+
+.user-blobatar-watermark svg {
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.05));
+  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+

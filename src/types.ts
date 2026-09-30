@@ -74,6 +74,9 @@ export interface Expense {
   project_id?: string; // Optional (General Expense if undefined)
   category: string;
   description?: string;
+  payment_method?: PaymentMethod | string;
+  reference_number?: string;
+  notes?: string;
   expense_date: string;
   created_at: string;
 }

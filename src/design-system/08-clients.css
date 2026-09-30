@@ -11,6 +11,8 @@
 }
 
 .client-bento-card {
+  position: relative;
+  overflow: hidden;
   background-color: white;
   background-image: radial-gradient(rgba(26,26,26,0.05) 1.2px, transparent 1.2px);
   background-size: 10px 10px;
@@ -22,8 +24,11 @@
   flex-direction: column;
   gap: 12px;
   cursor: pointer;
-  transition: var(--transition-smooth);
+  transition: transform 0.22s cubic-bezier(0.23, 1, 0.32, 1),
+              box-shadow 0.22s cubic-bezier(0.23, 1, 0.32, 1),
+              border-color 0.22s ease;
   height: auto;
+  min-height: 148px;
 }
 
 .client-bento-card:hover {
@@ -33,11 +38,128 @@
   background-image: radial-gradient(rgba(110,89,219,0.08) 1.2px, transparent 1.2px);
 }
 
+/* ── Content Elevation over Watermark ── */
+.card-top-header,
+.client-identity-info,
+.client-card-footer-strip {
+  position: relative;
+  z-index: 2;
+}
+
+/* ── Bottom-Right Animated Watermark ── */
+.client-card-watermark {
+  position: absolute;
+  bottom: -16px;
+  right: -14px;
+  z-index: 1;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.12;
+  transition: opacity 0.35s cubic-bezier(0.23, 1, 0.32, 1),
+              transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  will-change: transform, opacity;
+  transform-origin: bottom right;
+}
+
+.client-bento-card:hover .client-card-watermark {
+  opacity: 0.24;
+  transform: translate3d(-3px, -4px, 0) scale(1.08);
+}
+
+.watermark-animator {
+  animation: watermarkFloat 7.5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+}
+
+.client-bento-card:nth-child(2n) .watermark-animator {
+  animation-duration: 8.8s;
+  animation-delay: -2s;
+}
+
+.client-bento-card:nth-child(3n) .watermark-animator {
+  animation-duration: 9.6s;
+  animation-delay: -4.5s;
+}
+
+.client-bento-card:nth-child(4n) .watermark-animator {
+  animation-duration: 7s;
+  animation-delay: -1.2s;
+}
+
+@keyframes watermarkFloat {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  35% {
+    transform: translate3d(-4px, -3px, 0) rotate(-2.5deg) scale(1.03);
+  }
+  70% {
+    transform: translate3d(-1px, -5px, 0) rotate(2deg) scale(0.98);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .watermark-animator {
+    animation: none !important;
+  }
+  .client-card-watermark {
+    transition: opacity 0.2s ease !important;
+    transform: none !important;
+  }
+}
+
 /* ── Card Header ── */
 .card-top-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* ── Client Status Badge (in top header) ── */
+.client-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2.5px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.client-status-badge.status-active {
+  background-color: #E6F7ED;
+  color: #0E623B;
+  border: 1px solid rgba(14, 98, 59, 0.16);
+}
+
+.client-status-badge.status-idle {
+  background-color: var(--bg-sidebar);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+}
+
+.client-status-badge .status-indicator-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.client-status-badge.status-active .status-indicator-dot {
+  background-color: #10B981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.client-status-badge.status-idle .status-indicator-dot {
+  background-color: var(--text-placeholder);
 }
 
 .client-avatar-large {

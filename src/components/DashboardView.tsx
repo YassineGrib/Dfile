@@ -74,20 +74,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const monthlyExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0);
 
-  // Total budget of projects that are not completed, delivered, or cancelled
-  const activeProjectsBudget = projects
-    .filter((p) => p.status !== 'Completed' && p.status !== 'Delivered' && p.status !== 'Cancelled')
-    .reduce((acc, curr) => acc + curr.price_dzd, 0);
-
-  const activePaymentsReceived = payments.reduce((acc, curr) => {
-    const proj = projects.find((p) => p.id === curr.project_id);
-    if (proj && proj.status !== 'Completed' && proj.status !== 'Delivered' && proj.status !== 'Cancelled') {
-      return acc + curr.amount;
-    }
-    return acc;
-  }, 0);
-
-  const pendingPayments = activeProjectsBudget - activePaymentsReceived;
+  // Total pending receivables / outstanding client balances (sum of project remaining balances / reste)
+  const pendingPayments = projects
+    .filter((p) => p.status !== 'Cancelled')
+    .reduce((acc, p) => {
+      const projectPayments = payments.filter((pm) => pm.project_id === p.id);
+      const collected = projectPayments.reduce((s, pm) => s + (pm.amount || 0), 0);
+      return acc + Math.max(0, (p.price_dzd || 0) - collected);
+    }, 0);
 
   // Helper to format currency
   const formatCurrency = (val: number) => {
@@ -406,7 +400,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </span>
             <h3 className="kpi-main-number">{formatCurrency(pendingPayments > 0 ? pendingPayments : 0)}</h3>
             <p className="kpi-description-sub">
-              {language === 'ar' ? 'مستحقات مشاريع قيد العمل' : 'Outstanding client balances'}
+              {language === 'ar' ? 'إجمالي المتبقي للتحصيل من المشاريع' : 'Outstanding client balances'}
             </p>
           </div>
         </div>

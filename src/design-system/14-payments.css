@@ -58,6 +58,7 @@
 .payments-kpi-card.orange::before { background: var(--accent-orange); }
 .payments-kpi-card.purple::before { background: var(--accent-purple); }
 .payments-kpi-card.amber::before  { background: #D97706; }
+.payments-kpi-card.red::before    { background: #D32F2F; }
 
 .kpi-card-header {
   display: flex;
@@ -86,6 +87,7 @@
 .kpi-card-icon-bubble.orange { background-color: #FFF1EA; color: var(--accent-orange); }
 .kpi-card-icon-bubble.purple { background-color: var(--accent-purple-light); color: var(--accent-purple); }
 .kpi-card-icon-bubble.amber  { background-color: #FEF3C7; color: #B45309; }
+.kpi-card-icon-bubble.red    { background-color: #FFEBEE; color: #D32F2F; }
 
 .kpi-card-value-row {
   display: flex;

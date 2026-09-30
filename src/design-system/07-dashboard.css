@@ -401,8 +401,9 @@
   animation: pulseAvailability 2s infinite;
 }
 
-.availability-glow-dot.free { background-color: var(--btn-primary); box-shadow: 0 0 0 0 rgba(14,79,47,0.4); }
-.availability-glow-dot.busy { background-color: var(--accent-orange); box-shadow: 0 0 0 0 rgba(231,124,64,0.4); }
+.availability-glow-dot.free     { background-color: var(--btn-primary); box-shadow: 0 0 0 0 rgba(14,79,47,0.4); }
+.availability-glow-dot.moderate { background-color: #f59e0b; box-shadow: 0 0 0 0 rgba(245,158,11,0.4); }
+.availability-glow-dot.busy     { background-color: #ef4444; box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
 
 .availability-title { font-size: 1.15rem; font-weight: var(--weight-bold); color: var(--text-main); letter-spacing: -0.01em; }
 

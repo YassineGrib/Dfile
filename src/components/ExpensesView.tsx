@@ -1,28 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useLanguage } from './LanguageContext';
+import { AddExpenseModal } from './AddExpenseModal';
 import type { Expense, Project } from '../types';
 import { 
-  Search, 
-  Plus, 
-  Edit2, 
-  Trash2, 
-  X, 
-  AlertTriangle, 
-  Cpu, 
-  Cloud, 
-  Megaphone, 
-  Laptop, 
-  Box, 
-  FileText, 
-  Check, 
-  Info,
-  DollarSign,
-  TrendingDown
+  TrendingDown, Plus, Search, Trash2, ArrowUpDown, 
+  Cpu, Cloud, Megaphone, Laptop, Box, 
+  FolderKanban, Clock, Percent, Edit2
 } from 'lucide-react';
 
 interface ExpensesViewProps {
   expenses: Expense[];
   projects: Project[];
+  onOpenAddExpense?: () => void;
   onAddExpense: (expense: Expense) => void;
   onEditExpense: (expense: Expense) => void;
   onDeleteExpense: (expenseId: string) => void;
@@ -31,799 +20,565 @@ interface ExpensesViewProps {
 export const ExpensesView: React.FC<ExpensesViewProps> = ({
   expenses,
   projects,
+  onOpenAddExpense,
   onAddExpense,
   onEditExpense,
   onDeleteExpense,
 }) => {
   const { language } = useLanguage();
 
-  // Search & Filter state
-  const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('All');
-  const [projectFilter, setProjectFilter] = useState<'All' | 'Linked' | 'General'>('All');
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'amount_high' | 'amount_low'>('newest');
-
-  // Slide-over states (details, editing, adding, deleting)
-  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
+  const [selectedProjectFilter, setSelectedProjectFilter] = useState<'all' | 'linked' | 'general'>('all');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [isAddingExpense, setIsAddingExpense] = useState(false);
-  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
 
-  // Form states for Add / Edit
-  const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('Software/Tools');
-  const [projectId, setProjectId] = useState('');
-  const [description, setDescription] = useState('');
-  const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0]);
+  // 1. KPI Metrics
+  const metrics = useMemo(() => {
+    const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
 
-  const [editAmount, setEditAmount] = useState<number>(0);
-  const [editCategory, setEditCategory] = useState('Software/Tools');
-  const [editDescription, setEditDescription] = useState('');
-  const [editProjectId, setEditProjectId] = useState<string>('');
-  const [editDate, setEditDate] = useState('');
+    const projectExpensesList = expenses.filter(e => Boolean(e.project_id));
+    const projectExpenses = projectExpensesList.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const projectExpensesCount = projectExpensesList.length;
 
-  // Toast confirmation
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+    const now = new Date();
+    const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const thisMonthExpenses = expenses
+      .filter(e => e.expense_date && e.expense_date.startsWith(currentMonthPrefix))
+      .reduce((sum, e) => sum + (e.amount || 0), 0);
 
-  const triggerToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 2000);
-  };
+    const averageExpense = expenses.length > 0 
+      ? Math.round(totalExpenses / expenses.length) 
+      : 0;
 
-  // Category Icon Mapper
-  const getCategoryIcon = (cat: string, size = 18) => {
+    return { 
+      totalExpenses, 
+      projectExpenses, 
+      projectExpensesCount,
+      thisMonthExpenses, 
+      averageExpense 
+    };
+  }, [expenses]);
+
+  // 2. Filter & Sort Logic
+  const filteredExpenses = useMemo(() => {
+    return expenses
+      .filter(e => {
+        const project = projects.find(proj => proj.id === e.project_id);
+
+        const matchesQuery = 
+          searchQuery.trim() === '' ||
+          (e.description && e.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (e.category && e.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (project && project.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (e.reference_number && e.reference_number.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (e.notes && e.notes.toLowerCase().includes(searchQuery.toLowerCase()));
+
+        const matchesCategory = 
+          selectedCategoryFilter === 'all' || 
+          e.category === selectedCategoryFilter;
+
+        const matchesProject = 
+          selectedProjectFilter === 'all' ||
+          (selectedProjectFilter === 'linked' && Boolean(e.project_id)) ||
+          (selectedProjectFilter === 'general' && !e.project_id);
+
+        return matchesQuery && matchesCategory && matchesProject;
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.expense_date).getTime();
+        const dateB = new Date(b.expense_date).getTime();
+        return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+      });
+  }, [expenses, projects, searchQuery, selectedCategoryFilter, selectedProjectFilter, sortOrder]);
+
+  const getCategoryIcon = (cat: string, size = 15) => {
     switch (cat) {
-      case 'Software/Tools':
-        return <Cpu size={size} />;
-      case 'Hosting/Services':
-        return <Cloud size={size} />;
-      case 'Marketing':
-        return <Megaphone size={size} />;
-      case 'Hardware':
-      case 'Equipment':
-        return <Laptop size={size} />;
-      default:
-        return <Box size={size} />;
+      case 'Software/Tools': return <Cpu size={size} />;
+      case 'Hosting/Services': return <Cloud size={size} />;
+      case 'Marketing': return <Megaphone size={size} />;
+      case 'Equipment': return <Laptop size={size} />;
+      default: return <Box size={size} />;
     }
   };
 
-  // Helper payment methods and mock invoice IDs for the database
-  const getExtendedDetails = (id: string) => {
-    const paymentMethods = ['Credit Card', 'CCP Transfer', 'Cash', 'Bank Transfer', 'BaridiMob'];
-    const codes = ['INV-802', 'INV-109', 'INV-552', 'INV-204', 'INV-319'];
-    const idx = id.charCodeAt(id.length - 1) % 5;
-    return {
-      paymentMethod: paymentMethods[idx],
-      invoiceRef: codes[idx]
-    };
-  };
-
-  // Filter & Sort Logic
-  const filteredExpenses = expenses
-    .filter(exp => {
-      const matchesSearch = 
-        (exp.description && exp.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        exp.category.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesCategory = 
-        categoryFilter === 'All' || exp.category === categoryFilter;
-
-      const matchesLink = 
-        projectFilter === 'All' ||
-        (projectFilter === 'Linked' && exp.project_id) ||
-        (projectFilter === 'General' && !exp.project_id);
-
-      return matchesSearch && matchesCategory && matchesLink;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'newest') return new Date(b.expense_date).getTime() - new Date(a.expense_date).getTime();
-      if (sortBy === 'oldest') return new Date(a.expense_date).getTime() - new Date(b.expense_date).getTime();
-      if (sortBy === 'amount_high') return b.amount - a.amount;
-      if (sortBy === 'amount_low') return a.amount - b.amount;
-      return 0;
-    });
-
-  // Calculate overall metrics
-  const totalAmount = filteredExpenses.reduce((acc, curr) => acc + curr.amount, 0);
-  const averageAmount = filteredExpenses.length > 0 ? Math.round(totalAmount / filteredExpenses.length) : 0;
-  const projectLinkedCount = filteredExpenses.filter(e => e.project_id).length;
-
-  // Add Expense Submission
-  const handleAddSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!amount) return;
-
-    const newExp: Expense = {
-      id: 'exp_' + Math.random().toString(36).substr(2, 9),
-      amount: parseFloat(amount),
-      project_id: projectId || undefined,
-      category,
-      description: description.trim() || undefined,
-      expense_date: expenseDate,
-      created_at: new Date().toISOString()
-    };
-
-    onAddExpense(newExp);
-    setIsAddingExpense(false);
-    
-    // Clear inputs
-    setAmount('');
-    setCategory('Software/Tools');
-    setProjectId('');
-    setDescription('');
-    setExpenseDate(new Date().toISOString().split('T')[0]);
-
-    triggerToast(language === 'ar' ? 'تم إضافة بند المصاريف بنجاح!' : 'Expense recorded successfully!');
-  };
-
-  // Edit Start Helper
-  const handleStartEdit = (exp: Expense, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditingExpense(exp);
-    setEditAmount(exp.amount);
-    setEditCategory(exp.category);
-    setEditDescription(exp.description || '');
-    setEditProjectId(exp.project_id || '');
-    setEditDate(exp.expense_date);
-  };
-
-  // Save Edit submit
-  const handleSaveEdit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingExpense) return;
-
-    const updated: Expense = {
-      ...editingExpense,
-      amount: editAmount,
-      category: editCategory,
-      description: editDescription || undefined,
-      project_id: editProjectId || undefined,
-      expense_date: editDate
-    };
-
-    onEditExpense(updated);
-    setEditingExpense(null);
-    if (selectedExpense && selectedExpense.id === editingExpense.id) {
-      setSelectedExpense(updated);
+  const getCategoryLabel = (cat: string) => {
+    switch (cat) {
+      case 'Software/Tools': return language === 'ar' ? 'برامج وأدوات' : 'Software/Tools';
+      case 'Hosting/Services': return language === 'ar' ? 'استضافة وخدمات' : 'Hosting';
+      case 'Marketing': return language === 'ar' ? 'تسويق وإعلانات' : 'Marketing';
+      case 'Equipment': return language === 'ar' ? 'أجهزة ومعدات' : 'Equipment';
+      default: return language === 'ar' ? 'أخرى' : 'Others';
     }
-    triggerToast(language === 'ar' ? 'تم تحديث المصاريف بنجاح!' : 'Expense updated successfully!');
   };
 
-  // Delete Click Helper
-  const handleDeleteClick = (expenseId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setDeletingExpenseId(expenseId);
-  };
-
-  const handleConfirmDelete = (id: string) => {
-    onDeleteExpense(id);
-    setDeletingExpenseId(null);
-    if (selectedExpense && selectedExpense.id === id) {
-      setSelectedExpense(null);
+  const getCategoryPillClass = (cat: string) => {
+    switch (cat) {
+      case 'Software/Tools': return 'pill-pay-type advance';
+      case 'Hosting/Services': return 'pill-pay-type final';
+      case 'Marketing': return 'pill-pay-type tip';
+      case 'Equipment': return 'pill-pay-type milestone';
+      default: return 'pill-pay-type';
     }
-    triggerToast(language === 'ar' ? 'تم حذف بند المصروفات' : 'Expense record deleted.');
+  };
+
+  const getMethodBadgeClass = (method?: string) => {
+    switch (method) {
+      case 'baridimob': return 'badge-pay-method baridimob';
+      case 'ccp': return 'badge-pay-method ccp';
+      case 'bank_transfer': return 'badge-pay-method bank';
+      case 'cash': return 'badge-pay-method cash';
+      default: return 'badge-pay-method other';
+    }
+  };
+
+  const getMethodLabel = (method?: string) => {
+    switch (method) {
+      case 'baridimob': return 'BaridiMob';
+      case 'ccp': return 'CCP';
+      case 'bank_transfer': return language === 'ar' ? 'تحويل بنكي' : 'Bank Wire';
+      case 'cash': return language === 'ar' ? 'نقداً' : 'Cash';
+      default: return method || (language === 'ar' ? 'أخرى' : 'Other');
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    const confirmMsg = language === 'ar'
+      ? 'هل أنت متأكد من رغبتك في حذف هذا السجل المالي للنفقات؟'
+      : 'Are you sure you want to delete this expense record?';
+    if (window.confirm(confirmMsg)) {
+      onDeleteExpense(id);
+    }
+  };
+
+  const handleOpenAdd = () => {
+    if (onOpenAddExpense) {
+      onOpenAddExpense();
+    } else {
+      setIsAddModalOpen(true);
+    }
   };
 
   return (
-    <div className="dashboard-content-area">
+    <div className="dashboard-content-area" style={{ paddingBottom: '60px' }}>
       
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="toast-notification animate-slide-in">
-          <Check size={16} style={{ marginRight: '6px' }} />
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
-      {/* Header breadcrumb */}
-      <div className="workspace-header-strip">
-        <div className="project-breadcrumb">
-          <span>{language === 'ar' ? 'المصاريف والنفقات' : 'Expenses Directory'}</span>
-          <span className="breadcrumb-divider">/</span>
-          <span className="text-bold">{language === 'ar' ? 'إدارة نفقات العمل' : 'Business Outlays'}</span>
+      {/* 1. Header Row */}
+      <div className="view-header-row">
+        <div>
+          <h2 className="header-greeting-title" style={{ fontSize: '1.6rem', fontWeight: 450 }}>
+            {language === 'ar' ? 'سجل المصاريف والتكاليف العامة' : 'Expenses & Outlays Hub'}
+          </h2>
+          <p className="header-greeting-subtitle" style={{ fontSize: '0.85rem', fontWeight: 400 }}>
+            {language === 'ar' 
+              ? 'تتبع ومراقبة جميع النفقات والتكاليف التشغيلية ومصاريف المشاريع'
+              : 'Track and reconcile operational costs, software subscriptions, and project expenditures'}
+          </p>
         </div>
 
-        {/* Clicking opens the slide-over addition drawer */}
-        <button onClick={() => setIsAddingExpense(true)} className="submit-btn compact-btn" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Plus size={16} />
-          {language === 'ar' ? 'تسجيل مصاريف جديدة' : 'Log Expense'}
+        <button 
+          id="btnRecordExpense"
+          onClick={handleOpenAdd}
+          className="submit-btn"
+          style={{ padding: '10px 18px', fontSize: '0.85rem', gap: '8px' }}
+        >
+          <Plus size={15} />
+          <span>{language === 'ar' ? 'تسجيل مصروف جديد' : 'Record Expense'}</span>
         </button>
       </div>
 
-      {/* Title greeting */}
-      <div className="project-details-intro-block" style={{ marginBottom: '16px' }}>
-        <div>
-          <h2 className="project-title-heading">
-            {language === 'ar' ? 'سجل المصاريف والتكاليف العامة' : 'Business Outlays & Expenses'}
-          </h2>
-          <p className="header-greeting-subtitle" style={{ margin: '4px 0 0 0' }}>
-            {language === 'ar' ? 'تتبع مصاريف التراخيص والخدمات السحابية واحتساب ربحية المشاريع.' : 'Track software licensing, hosting services, and project outlays.'}
-          </p>
+      {/* 2. Top KPI Cards */}
+      <div className="payments-kpi-grid">
+        
+        {/* KPI 1: Total Outlays */}
+        <div className="payments-kpi-card red">
+          <div className="kpi-card-header">
+            <span className="kpi-card-label">
+              {language === 'ar' ? 'إجمالي المصاريف الكلية' : 'Total Logged Outlays'}
+            </span>
+            <div className="kpi-card-icon-bubble red">
+              <TrendingDown size={16} />
+            </div>
+          </div>
+          <div className="kpi-card-value-row">
+            <span className="kpi-card-metric-huge" style={{ color: '#D32F2F' }}>
+              -{metrics.totalExpenses.toLocaleString()}
+            </span>
+            <span className="kpi-currency-unit">DZ</span>
+          </div>
+          <span className="kpi-subtext-note">
+            {language === 'ar' ? 'مجموع جميع التكاليف والنفقات المسجلة' : 'From all cleared expense records'}
+          </span>
+        </div>
+
+        {/* KPI 2: Project-Linked Outlays */}
+        <div className="payments-kpi-card orange">
+          <div className="kpi-card-header">
+            <span className="kpi-card-label">
+              {language === 'ar' ? 'تكاليف المشاريع المباشرة' : 'Project-Linked Outlays'}
+            </span>
+            <div className="kpi-card-icon-bubble orange">
+              <FolderKanban size={16} />
+            </div>
+          </div>
+          <div className="kpi-card-value-row">
+            <span className="kpi-card-metric-huge" style={{ color: 'var(--accent-orange)' }}>
+              -{metrics.projectExpenses.toLocaleString()}
+            </span>
+            <span className="kpi-currency-unit">DZ</span>
+          </div>
+          <span className="kpi-subtext-note">
+            {language === 'ar' 
+              ? `${metrics.projectExpensesCount} نفقة مخصصة للمشاريع` 
+              : `${metrics.projectExpensesCount} outlays allocated to projects`}
+          </span>
+        </div>
+
+        {/* KPI 3: This Month Outlays */}
+        <div className="payments-kpi-card purple">
+          <div className="kpi-card-header">
+            <span className="kpi-card-label">
+              {language === 'ar' ? 'مصاريف هذا الشهر' : 'This Month Outlays'}
+            </span>
+            <div className="kpi-card-icon-bubble purple">
+              <Clock size={16} />
+            </div>
+          </div>
+          <div className="kpi-card-value-row">
+            <span className="kpi-card-metric-huge" style={{ color: 'var(--accent-purple)' }}>
+              -{metrics.thisMonthExpenses.toLocaleString()}
+            </span>
+            <span className="kpi-currency-unit">DZ</span>
+          </div>
+          <span className="kpi-subtext-note">
+            {language === 'ar' ? 'نفقات الشهر التقويمي الحالي' : 'Recorded in the current month'}
+          </span>
+        </div>
+
+        {/* KPI 4: Average Outlay */}
+        <div className="payments-kpi-card amber">
+          <div className="kpi-card-header">
+            <span className="kpi-card-label">
+              {language === 'ar' ? 'متوسط قيمة المعاملة' : 'Average Outlay'}
+            </span>
+            <div className="kpi-card-icon-bubble amber">
+              <Percent size={16} />
+            </div>
+          </div>
+          <div className="kpi-card-value-row">
+            <span className="kpi-card-metric-huge" style={{ color: '#B45309' }}>
+              {metrics.averageExpense.toLocaleString()}
+            </span>
+            <span className="kpi-currency-unit">DZ</span>
+          </div>
+          <span className="kpi-subtext-note">
+            {language === 'ar' 
+              ? `${expenses.length} عملية صرف مسجلة إجمالاً` 
+              : `Across ${expenses.length} total outlay entries`}
+          </span>
         </div>
       </div>
 
-      {/* Summary KPI Strip */}
-      <div className="table-summary-strip" style={{ marginBottom: '20px' }}>
-        <div className="summary-metric-tile">
-          <span className="metric-tile-label">{language === 'ar' ? 'إجمالي النفقات النشطة' : 'Total Outlays'}</span>
-          <span className="metric-tile-val text-red" style={{ color: '#D32F2F', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <TrendingDown size={18} />
-            {totalAmount.toLocaleString()} DZ
-          </span>
-        </div>
-        <div className="summary-metric-tile">
-          <span className="metric-tile-label">{language === 'ar' ? 'متوسط المعاملة' : 'Average Outlay'}</span>
-          <span className="metric-tile-val" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <DollarSign size={18} style={{ color: 'var(--text-placeholder)' }} />
-            {averageAmount.toLocaleString()} DZ
-          </span>
-        </div>
-        <div className="summary-metric-tile">
-          <span className="metric-tile-label">{language === 'ar' ? 'نفقات مرتبطة بمشاريع' : 'Project-Linked Outlays'}</span>
-          <span className="metric-tile-val" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Info size={16} style={{ color: 'var(--text-placeholder)' }} />
-            {projectLinkedCount} / {filteredExpenses.length}
-          </span>
-        </div>
-      </div>
-
-      {/* Directory Filter / Search Toolbar */}
-      <div className="clients-toolbar-strip" style={{ marginBottom: '20px' }}>
-        <div className="search-toolbar-input">
-          <Search size={15} />
-          <input 
-            type="text" 
-            placeholder={language === 'ar' ? 'ابحث عن تصنيف، وصف...' : 'Search category, description...'}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+      {/* 3. Search & Filters Panel */}
+      <div className="payments-toolbar-panel">
+        <div className="payments-search-input-wrap">
+          <Search size={15} className="search-icon" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={
+              language === 'ar' 
+                ? 'بحث بالبيان، المشروع، التصنيف، أو المرجع...' 
+                : 'Search by description, project, category, or ref...'
+            }
+            className="payments-search-field"
           />
-          {searchTerm && (
-            <button onClick={() => setSearchTerm('')} className="clear-search-btn">
-              <X size={12} />
+        </div>
+
+        <div className="payments-filters-group">
+          {/* Category Filter Chips */}
+          <button
+            type="button"
+            onClick={() => setSelectedCategoryFilter('all')}
+            className={`payments-filter-chip ${selectedCategoryFilter === 'all' ? 'active' : ''}`}
+          >
+            {language === 'ar' ? 'جميع التصنيفات' : 'All Categories'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedCategoryFilter('Software/Tools')}
+            className={`payments-filter-chip ${selectedCategoryFilter === 'Software/Tools' ? 'active' : ''}`}
+          >
+            {language === 'ar' ? 'برامج وأدوات' : 'Software'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedCategoryFilter('Hosting/Services')}
+            className={`payments-filter-chip ${selectedCategoryFilter === 'Hosting/Services' ? 'active' : ''}`}
+          >
+            {language === 'ar' ? 'استضافة' : 'Hosting'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedCategoryFilter('Marketing')}
+            className={`payments-filter-chip ${selectedCategoryFilter === 'Marketing' ? 'active' : ''}`}
+          >
+            {language === 'ar' ? 'تسويق' : 'Marketing'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedCategoryFilter('Equipment')}
+            className={`payments-filter-chip ${selectedCategoryFilter === 'Equipment' ? 'active' : ''}`}
+          >
+            {language === 'ar' ? 'أجهزة' : 'Equipment'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedCategoryFilter('Others')}
+            className={`payments-filter-chip ${selectedCategoryFilter === 'Others' ? 'active' : ''}`}
+          >
+            {language === 'ar' ? 'أخرى' : 'Others'}
+          </button>
+
+          {/* Project Linkage Toggle */}
+          <button
+            type="button"
+            onClick={() => setSelectedProjectFilter(prev => {
+              if (prev === 'all') return 'linked';
+              if (prev === 'linked') return 'general';
+              return 'all';
+            })}
+            className={`payments-filter-chip ${selectedProjectFilter !== 'all' ? 'active' : ''}`}
+            title={language === 'ar' ? 'تصفية حسب الارتباط بمشروع' : 'Filter by project link'}
+          >
+            {selectedProjectFilter === 'all' && (language === 'ar' ? 'المشاريع: الكل' : 'Projects: All')}
+            {selectedProjectFilter === 'linked' && (language === 'ar' ? 'مرتبطة بمشروع' : 'Project Linked')}
+            {selectedProjectFilter === 'general' && (language === 'ar' ? 'تكاليف عامة' : 'General Costs')}
+          </button>
+
+          {/* Sort Order Button */}
+          <button
+            type="button"
+            onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+            className="payments-filter-chip"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+            title={language === 'ar' ? 'ترتيب حسب التاريخ' : 'Sort by date'}
+          >
+            <ArrowUpDown size={12} />
+            <span>
+              {sortOrder === 'desc' 
+                ? (language === 'ar' ? 'الأحدث أولاً' : 'Newest') 
+                : (language === 'ar' ? 'الأقدم أولاً' : 'Oldest')}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* 4. Transactions Ledger Table */}
+      {filteredExpenses.length === 0 ? (
+        <div className="empty-directory-card">
+          <div 
+            className="kpi-card-icon-bubble red" 
+            style={{ width: '48px', height: '48px', borderRadius: '50%' }}
+          >
+            <TrendingDown size={24} />
+          </div>
+          <h4 style={{ fontSize: '1.05rem', fontWeight: 450 }}>
+            {expenses.length === 0 
+              ? (language === 'ar' ? 'لا توجد مصاريف مسجلة بعد' : 'No expenses logged yet')
+              : (language === 'ar' ? 'لا توجد نتائج مطابقة لخيارات البحث' : 'No expenses match your search filters')}
+          </h4>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+            {expenses.length === 0 
+              ? (language === 'ar' 
+                  ? 'ابدأ بتسجيل أول مصروف تشغيلي أو اشتراك لربطه بالمشاريع ومتابعة التكاليف بدقة.' 
+                  : 'Start recording operational outlays to monitor cost allocations and real project margins.')
+              : (language === 'ar' 
+                  ? 'جرّب تعديل كلمات البحث أو تصفير فلتر التصنيفات.' 
+                  : 'Try changing your search terms or clearing the category filter.')}
+          </p>
+          {expenses.length === 0 && (
+            <button 
+              onClick={handleOpenAdd} 
+              className="submit-btn" 
+              style={{ padding: '8px 20px', fontSize: '0.85rem', marginTop: '6px' }}
+            >
+              <Plus size={15} />
+              <span>{language === 'ar' ? 'تسجيل أول مصروف' : 'Record First Expense'}</span>
             </button>
           )}
         </div>
+      ) : (
+        <div className="payments-table-card">
+          <div className="payments-table-wrap">
+            <table className="payments-table">
+              <thead>
+                <tr>
+                  <th>{language === 'ar' ? 'بيان المصروف' : 'Item / Outlay'}</th>
+                  <th>{language === 'ar' ? 'المشروع المرتبط' : 'Project'}</th>
+                  <th>{language === 'ar' ? 'المبلغ المستقطع' : 'Amount'}</th>
+                  <th>{language === 'ar' ? 'التصنيف' : 'Category'}</th>
+                  <th>{language === 'ar' ? 'طريقة الدفع' : 'Method'}</th>
+                  <th>{language === 'ar' ? 'تاريخ الصرف' : 'Date'}</th>
+                  <th>{language === 'ar' ? 'رقم الإشعار / الفاتورة' : 'Reference'}</th>
+                  <th style={{ textAlign: 'center' }}>{language === 'ar' ? 'الإجراءات' : 'Actions'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredExpenses.map((exp) => {
+                  const project = projects.find(p => p.id === exp.project_id);
 
-        <div className="filter-pills-row" style={{ gap: '8px' }}>
-          <select 
-            value={categoryFilter} 
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="toolbar-select-filter"
-            style={{ border: 'none', background: 'transparent', fontWeight: 500 }}
-          >
-            <option value="All">{language === 'ar' ? 'جميع التصنيفات' : 'All Categories'}</option>
-            <option value="Software/Tools">Software/Tools</option>
-            <option value="Hosting/Services">Hosting/Services</option>
-            <option value="Marketing">Marketing</option>
-            <option value="Hardware">Hardware</option>
-            <option value="Others">Others</option>
-          </select>
-
-          <select 
-            value={projectFilter} 
-            onChange={(e) => setProjectFilter(e.target.value as any)}
-            className="toolbar-select-filter"
-            style={{ border: 'none', background: 'transparent', fontWeight: 500 }}
-          >
-            <option value="All">{language === 'ar' ? 'جميع المصاريف' : 'All Expenses'}</option>
-            <option value="Linked">{language === 'ar' ? 'مرتبطة بمشاريع' : 'Project Linked'}</option>
-            <option value="General">{language === 'ar' ? 'نفقات عامة' : 'General Outlays'}</option>
-          </select>
-
-          <select 
-            value={sortBy} 
-            onChange={(e) => setSortBy(e.target.value as any)}
-            className="toolbar-select-filter"
-            style={{ border: 'none', background: 'transparent', fontWeight: 500 }}
-          >
-            <option value="newest">{language === 'ar' ? 'الأحدث' : 'Newest'}</option>
-            <option value="oldest">{language === 'ar' ? 'الأقدم' : 'Oldest'}</option>
-            <option value="amount_high">{language === 'ar' ? 'الأعلى قيمة' : 'Highest'}</option>
-            <option value="amount_low">{language === 'ar' ? 'الأقل قيمة' : 'Lowest'}</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Bento Directory Grid - Spanning Full Width */}
-      <div className="clients-grid-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-        {filteredExpenses.length === 0 ? (
-          <div className="no-milestones-txt" style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px' }}>
-            {language === 'ar' ? 'لم يتم العثور على أي نفقات مطابقة.' : 'No matching outlays found.'}
-          </div>
-        ) : (
-          filteredExpenses.map(exp => {
-            const linkedProj = projects.find(p => p.id === exp.project_id);
-
-            return (
-              <div 
-                key={exp.id}
-                onClick={() => setSelectedExpense(exp)}
-                className="client-bento-card"
-                style={{ cursor: 'pointer' }}
-              >
-                {/* Top header with category icon & action controls */}
-                <div className="card-top-header">
-                  <div className="client-avatar-large" style={{ backgroundColor: '#FFF3E0', color: '#E65100', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {getCategoryIcon(exp.category, 20)}
-                  </div>
-                  <div className="card-action-icons">
-                    <button 
-                      onClick={(e) => handleStartEdit(exp, e)}
-                      title={language === 'ar' ? 'تعديل البيانات' : 'Edit outlay'}
-                    >
-                      <Edit2 size={13} />
-                    </button>
-                    <button 
-                      onClick={(e) => handleDeleteClick(exp.id, e)}
-                      className="delete-icon-btn"
-                      title={language === 'ar' ? 'حذف السجل' : 'Delete outlay'}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Amount and description */}
-                <div className="client-identity-info">
-                  <span style={{ fontSize: '1.2rem', fontWeight: 500, color: '#D32F2F', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                    -{exp.amount.toLocaleString()} DZ
-                  </span>
-                  <h4 className="client-display-name" style={{ marginTop: '8px' }}>{exp.description || 'General Outlay'}</h4>
-                </div>
-
-                {/* Footer details */}
-                <div className="client-card-footer-strip">
-                  <div className="client-card-small-stats">
-                    <span className="stat-value">{exp.expense_date}</span>
-                    <span className="stat-separator">•</span>
-                    {linkedProj ? (
-                      <span className="stat-value text-green" style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        🔗 {linkedProj.name}
-                      </span>
-                    ) : (
-                      <span className="stat-value">{language === 'ar' ? 'تكلفة عامة' : 'General'}</span>
-                    )}
-                  </div>
-                </div>
-
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      {/* ------------------------------------------------------------- */}
-      {/* 1. SLIDE-OVER DETAIL PANEL */}
-      {/* ------------------------------------------------------------- */}
-      {selectedExpense && !editingExpense && (
-        <div className="slide-over-overlay" onClick={() => setSelectedExpense(null)}>
-          <div 
-            className="slide-over-container animate-slide-in" 
-            onClick={(e) => e.stopPropagation()}
-            style={{ direction: language === 'ar' ? 'rtl' : 'ltr' }}
-          >
-            {/* Header */}
-            <div className="slide-over-header">
-              <div className="client-badge-profile">
-                <div className="profile-large-avatar" style={{ backgroundColor: '#FFF3E0', color: '#E65100', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {getCategoryIcon(selectedExpense.category, 24)}
-                </div>
-                <div>
-                  <h3 className="profile-name-title">{selectedExpense.description || 'General Outlay'}</h3>
-                  <span className="profile-muted-date">{selectedExpense.expense_date}</span>
-                </div>
-              </div>
-              <button onClick={() => setSelectedExpense(null)} className="close-slide-over-btn" aria-label="Close">
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Scrollable details */}
-            <div className="slide-over-content-body">
-              <div className="ledger-details-section">
-                <h4 className="ledger-sub-title">{language === 'ar' ? 'بيانات المعاملة المالية' : 'Transaction Information'}</h4>
-                <div className="ledger-info-grid">
-                  <div className="ledger-info-row" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span className="info-label">{language === 'ar' ? 'المبلغ المستقطع:' : 'Amount Paid:'}</span>
-                    <span className="info-value text-bold text-red" style={{ color: '#D32F2F' }}>
-                      -{selectedExpense.amount.toLocaleString()} DZ
-                    </span>
-                  </div>
-
-                  <div className="ledger-info-row" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span className="info-label">{language === 'ar' ? 'التصنيف:' : 'Category:'}</span>
-                    <span className="info-value text-bold">{selectedExpense.category}</span>
-                  </div>
-
-                  <div className="ledger-info-row" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span className="info-label">{language === 'ar' ? 'طريقة الدفع:' : 'Payment Method:'}</span>
-                    <span className="info-value">{getExtendedDetails(selectedExpense.id).paymentMethod}</span>
-                  </div>
-
-                  <div className="ledger-info-row" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span className="info-label">{language === 'ar' ? 'رقم الفاتورة المرجعي:' : 'Invoice Ref:'}</span>
-                    <span className="info-value font-mono">{getExtendedDetails(selectedExpense.id).invoiceRef}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Profitability margin impact */}
-              {selectedExpense.project_id && (
-                <div className="ledger-details-section" style={{ marginTop: '20px' }}>
-                  <h4 className="ledger-sub-title">{language === 'ar' ? 'ربحية المشروع المرتبط' : 'Project Profitability Margin'}</h4>
-                  {(() => {
-                    const proj = projects.find(p => p.id === selectedExpense.project_id);
-                    if (!proj) return null;
-                    const projExpenses = expenses.filter(e => e.project_id === proj.id);
-                    const totalProjExp = projExpenses.reduce((sum, curr) => sum + curr.amount, 0);
-                    const netMargin = proj.price_dzd - totalProjExp;
-                    const marginPercent = proj.price_dzd > 0 ? Math.round((netMargin / proj.price_dzd) * 100) : 100;
-
-                    return (
-                      <div className="ledger-financial-summary-row" style={{ flexDirection: 'column', gap: '8px', padding: '12px', borderRadius: '8px', background: 'var(--bg-sidebar)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-                          <span style={{ color: 'var(--text-placeholder)' }}>{language === 'ar' ? 'اسم المشروع:' : 'Project Name:'}</span>
-                          <span style={{ fontWeight: 500 }}>{proj.name}</span>
+                  return (
+                    <tr key={exp.id}>
+                      {/* Description & Icon */}
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div 
+                            style={{ 
+                              width: '28px', 
+                              height: '28px', 
+                              borderRadius: 'var(--radius-sm)', 
+                              backgroundColor: '#FFEBEE', 
+                              color: '#D32F2F', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center' 
+                            }}
+                          >
+                            {getCategoryIcon(exp.category, 14)}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 450, color: 'var(--text-main)' }}>
+                              {exp.description || (language === 'ar' ? 'مصروف عام' : 'General Outlay')}
+                            </div>
+                            {exp.notes && (
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                {exp.notes}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-                          <span style={{ color: 'var(--text-placeholder)' }}>{language === 'ar' ? 'ميزانية العقد الكلية:' : 'Total Budget:'}</span>
-                          <span style={{ fontWeight: 500 }}>{proj.price_dzd.toLocaleString()} DZ</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-                          <span style={{ color: 'var(--text-placeholder)' }}>{language === 'ar' ? 'إجمالي نفقات المشروع:' : 'Total Costs:'}</span>
-                          <span style={{ fontWeight: 500, color: '#D32F2F' }}>{totalProjExp.toLocaleString()} DZ</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', borderTop: '1px dashed var(--border-color)', paddingTop: '6px', marginTop: '4px' }}>
-                          <span style={{ color: 'var(--text-muted)' }}>{language === 'ar' ? 'صافي الأرباح المتبقية:' : 'Net Profit Remaining:'}</span>
-                          <span style={{ fontWeight: 500, color: netMargin >= 0 ? '#2E7D32' : '#D32F2F' }}>
-                            {netMargin.toLocaleString()} DZ ({marginPercent}%)
+                      </td>
+
+                      {/* Project Link */}
+                      <td>
+                        {project ? (
+                          <span style={{ 
+                            fontSize: '0.8rem', 
+                            fontWeight: 450, 
+                            color: 'var(--text-main)',
+                            background: 'var(--bg-canvas)',
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            border: '1px solid var(--border-color)'
+                          }}>
+                            {project.name}
                           </span>
+                        ) : (
+                          <span style={{ 
+                            fontSize: '0.76rem', 
+                            color: 'var(--text-muted)',
+                            background: 'var(--bg-sidebar)',
+                            padding: '2px 7px',
+                            borderRadius: '3px'
+                          }}>
+                            {language === 'ar' ? 'تكلفة عامة' : 'General Cost'}
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Amount */}
+                      <td>
+                        <span className="payment-amount-cell" style={{ color: '#D32F2F' }}>
+                          -{exp.amount.toLocaleString()} <span style={{ fontSize: '0.75rem' }}>DZ</span>
+                        </span>
+                      </td>
+
+                      {/* Category Pill */}
+                      <td>
+                        <span className={getCategoryPillClass(exp.category)}>
+                          {getCategoryLabel(exp.category)}
+                        </span>
+                      </td>
+
+                      {/* Payment Method Badge */}
+                      <td>
+                        <span className={getMethodBadgeClass(exp.payment_method)}>
+                          {getMethodLabel(exp.payment_method)}
+                        </span>
+                      </td>
+
+                      {/* Date */}
+                      <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        {exp.expense_date}
+                      </td>
+
+                      {/* Reference Number */}
+                      <td>
+                        {exp.reference_number ? (
+                          <span style={{ 
+                            fontFamily: 'var(--font-mono)', 
+                            fontSize: '0.74rem', 
+                            color: 'var(--text-muted)',
+                            background: 'var(--bg-sidebar)',
+                            padding: '2px 6px',
+                            borderRadius: '3px'
+                          }}>
+                            {exp.reference_number}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-placeholder)', fontSize: '0.75rem' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* Actions */}
+                      <td style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          {/* Edit Trigger */}
+                          <button
+                            type="button"
+                            onClick={() => setEditingExpense(exp)}
+                            className="table-action-icon-btn"
+                            title={language === 'ar' ? 'تعديل المصروف' : 'Edit Expense'}
+                          >
+                            <Edit2 size={14} />
+                          </button>
+
+                          {/* Delete Trigger */}
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(exp.id)}
+                            className="table-action-icon-btn delete"
+                            title={language === 'ar' ? 'حذف المصروف' : 'Delete'}
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-
-              {/* Receipt File Voucher Upload Box */}
-              <div className="ledger-details-section" style={{ marginTop: '20px' }}>
-                <h4 className="ledger-sub-title">{language === 'ar' ? 'وصل الدفع وصورة الفاتورة' : 'Receipt Document Voucher'}</h4>
-                <div 
-                  style={{ 
-                    height: '120px', 
-                    border: '1.5px dashed var(--border-color)', 
-                    borderRadius: '8px', 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    backgroundColor: 'var(--bg-sidebar)',
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => triggerToast(language === 'ar' ? 'تحميل الوصل متوفر بالنسخة السحابية' : 'Voucher download is available in workspace cloud.')}
-                >
-                  <FileText size={32} style={{ color: 'var(--text-placeholder)' }} />
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-placeholder)', marginTop: '4px' }}>
-                    {getExtendedDetails(selectedExpense.id).invoiceRef}.pdf
-                  </span>
-                  <span style={{ fontSize: '0.68rem', color: 'var(--accent-orange)', fontWeight: 500, marginTop: '2px' }}>
-                    {language === 'ar' ? 'اضغط للمعاينة الكاملة' : 'Click to preview voucher'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="slide-over-footer-actions" style={{ display: 'flex', gap: '8px', marginTop: '32px' }}>
-                <button 
-                  onClick={(e) => handleStartEdit(selectedExpense, e)}
-                  className="submit-btn compact-btn" 
-                  style={{ flex: 1, background: 'var(--bg-card)', border: '1.5px solid var(--border-color)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                >
-                  <Edit2 size={14} />
-                  {language === 'ar' ? 'تعديل النفقات' : 'Edit Outlay'}
-                </button>
-                <button 
-                  onClick={(e) => handleDeleteClick(selectedExpense.id, e)}
-                  className="submit-btn compact-btn" 
-                  style={{ flex: 1, background: '#FFEBEE', color: '#D32F2F', border: '1px solid #FFCDCD', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                >
-                  <Trash2 size={14} />
-                  {language === 'ar' ? 'حذف السجل' : 'Delete'}
-                </button>
-              </div>
-
-            </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
-      {/* ------------------------------------------------------------- */}
-      {/* 2. SLIDE-OVER ADD EXPENSE PANEL */}
-      {/* ------------------------------------------------------------- */}
-      {isAddingExpense && (
-        <div className="slide-over-overlay" onClick={() => setIsAddingExpense(false)}>
-          <div 
-            className="slide-over-container animate-slide-in" 
-            onClick={(e) => e.stopPropagation()}
-            style={{ direction: language === 'ar' ? 'rtl' : 'ltr' }}
-          >
-            {/* Header */}
-            <div className="slide-over-header">
-              <div className="client-badge-profile">
-                <div className="profile-large-avatar" style={{ backgroundColor: 'var(--accent-orange)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Plus size={24} />
-                </div>
-                <div>
-                  <h3 className="profile-name-title">{language === 'ar' ? 'تسجيل مصروفات جديدة' : 'Log New Outlay'}</h3>
-                  <span className="profile-muted-date">{language === 'ar' ? 'إدخال البيانات المالية' : 'Specify transaction details'}</span>
-                </div>
-              </div>
-              <button onClick={() => setIsAddingExpense(false)} className="close-slide-over-btn" aria-label="Close">
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Form scroll content */}
-            <form onSubmit={handleAddSubmit} className="slide-over-content-body" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1 }}>
-                
-                <div className="form-group-item">
-                  <label>{language === 'ar' ? 'المبلغ المستقطع (DZ) *' : 'Outlay Amount (DZ) *'}</label>
-                  <input 
-                    type="number"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    required
-                    placeholder="e.g. 15000"
-                    className="milestone-form-input"
-                  />
-                </div>
-
-                <div className="form-group-item">
-                  <label>{language === 'ar' ? 'التصنيف' : 'Category'}</label>
-                  <select 
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="milestone-form-select"
-                  >
-                    <option value="Software/Tools">Software/Tools</option>
-                    <option value="Hosting/Services">Hosting/Services</option>
-                    <option value="Marketing">Marketing</option>
-                    <option value="Hardware">Hardware</option>
-                    <option value="Others">Others</option>
-                  </select>
-                </div>
-
-                <div className="form-group-item">
-                  <label>{language === 'ar' ? 'ربط بمشروع (اختياري)' : 'Link to Project (Optional)'}</label>
-                  <select 
-                    value={projectId}
-                    onChange={(e) => setProjectId(e.target.value)}
-                    className="milestone-form-select"
-                  >
-                    <option value="">{language === 'ar' ? '-- عام (غير مرتبط بمشروع) --' : '-- General (No linked project) --'}</option>
-                    {projects.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group-item">
-                  <label>{language === 'ar' ? 'تاريخ المعاملة' : 'Outlay Date'}</label>
-                  <input 
-                    type="date"
-                    value={expenseDate}
-                    onChange={(e) => setExpenseDate(e.target.value)}
-                    required
-                    className="milestone-form-input"
-                  />
-                </div>
-
-                <div className="form-group-item">
-                  <label>{language === 'ar' ? 'تفاصيل / بيان التكلفة *' : 'Description / Reason *'}</label>
-                  <input 
-                    type="text"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    required
-                    placeholder={language === 'ar' ? 'مثال: شراء تراخيص Figma Pro' : 'e.g. Figma Monthly Pro subscription'}
-                    className="milestone-form-input"
-                  />
-                </div>
-
-              </div>
-
-              {/* Footer Save */}
-              <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: 'auto' }}>
-                <button type="button" onClick={() => setIsAddingExpense(false)} className="btn-secondary" style={{ flex: 1 }}>
-                  {language === 'ar' ? 'إلغاء' : 'Cancel'}
-                </button>
-                <button type="submit" className="submit-btn primary-submit" style={{ flex: 1 }}>
-                  {language === 'ar' ? 'تسجيل المصاريف' : 'Save Outlay'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {/* 5. Add / Edit Expense Modal Dialog */}
+      {(isAddModalOpen || editingExpense) && (
+        <AddExpenseModal
+          isOpen={isAddModalOpen || Boolean(editingExpense)}
+          onClose={() => {
+            setIsAddModalOpen(false);
+            setEditingExpense(null);
+          }}
+          projects={projects}
+          expenseToEdit={editingExpense}
+          onAddExpense={onAddExpense}
+          onEditExpense={onEditExpense}
+        />
       )}
-
-      {/* ------------------------------------------------------------- */}
-      {/* 3. SLIDE-OVER EDIT EXPENSE PANEL */}
-      {/* ------------------------------------------------------------- */}
-      {editingExpense && (
-        <div className="slide-over-overlay" onClick={() => setEditingExpense(null)}>
-          <div 
-            className="slide-over-container animate-slide-in" 
-            onClick={(e) => e.stopPropagation()}
-            style={{ direction: language === 'ar' ? 'rtl' : 'ltr' }}
-          >
-            {/* Header */}
-            <div className="slide-over-header">
-              <div className="client-badge-profile">
-                <div className="profile-large-avatar" style={{ backgroundColor: 'var(--btn-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Edit2 size={24} />
-                </div>
-                <div>
-                  <h3 className="profile-name-title">{language === 'ar' ? 'تعديل تفاصيل المصروف' : 'Edit Outlay Details'}</h3>
-                  <span className="profile-muted-date">{editingExpense.description || 'General Outlay'}</span>
-                </div>
-              </div>
-              <button onClick={() => setEditingExpense(null)} className="close-slide-over-btn" aria-label="Close">
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Form edit scroll content */}
-            <form onSubmit={handleSaveEdit} className="slide-over-content-body" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1 }}>
-                
-                <div className="form-group-item">
-                  <label>{language === 'ar' ? 'المبلغ المستقطع (DZ) *' : 'Outlay Amount (DZ) *'}</label>
-                  <input 
-                    type="number"
-                    value={editAmount}
-                    onChange={(e) => setEditAmount(parseFloat(e.target.value))}
-                    required
-                    className="milestone-form-input"
-                  />
-                </div>
-
-                <div className="form-group-item">
-                  <label>{language === 'ar' ? 'التصنيف' : 'Category'}</label>
-                  <select 
-                    value={editCategory}
-                    onChange={(e) => setEditCategory(e.target.value)}
-                    className="milestone-form-select"
-                  >
-                    <option value="Software/Tools">Software/Tools</option>
-                    <option value="Hosting/Services">Hosting/Services</option>
-                    <option value="Marketing">Marketing</option>
-                    <option value="Hardware">Hardware</option>
-                    <option value="Others">Others</option>
-                  </select>
-                </div>
-
-                <div className="form-group-item">
-                  <label>{language === 'ar' ? 'المشروع المرتبط (اختياري)' : 'Link Project (Optional)'}</label>
-                  <select 
-                    value={editProjectId}
-                    onChange={(e) => setEditProjectId(e.target.value)}
-                    className="milestone-form-select"
-                  >
-                    <option value="">{language === 'ar' ? '-- عام (غير مرتبط بمشروع) --' : '-- General (No linked project) --'}</option>
-                    {projects.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group-item">
-                  <label>{language === 'ar' ? 'تاريخ المعاملة' : 'Outlay Date'}</label>
-                  <input 
-                    type="date"
-                    value={editDate}
-                    onChange={(e) => setEditDate(e.target.value)}
-                    required
-                    className="milestone-form-input"
-                  />
-                </div>
-
-                <div className="form-group-item">
-                  <label>{language === 'ar' ? 'التفاصيل / بيان التكلفة *' : 'Description / Reason *'}</label>
-                  <input 
-                    type="text"
-                    value={editDescription}
-                    onChange={(e) => setEditDescription(e.target.value)}
-                    required
-                    className="milestone-form-input"
-                  />
-                </div>
-
-              </div>
-
-              {/* Footer Save */}
-              <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: 'auto' }}>
-                <button type="button" onClick={() => setEditingExpense(null)} className="btn-secondary" style={{ flex: 1 }}>
-                  {language === 'ar' ? 'إلغاء' : 'Cancel'}
-                </button>
-                <button type="submit" className="submit-btn primary-submit" style={{ flex: 1 }}>
-                  {language === 'ar' ? 'حفظ التحديثات' : 'Save Changes'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ------------------------------------------------------------- */}
-      {/* 4. SLIDE-OVER DELETE CONFIRMATION PANEL */}
-      {/* ------------------------------------------------------------- */}
-      {deletingExpenseId && (() => {
-        const exp = expenses.find(e => e.id === deletingExpenseId);
-        if (!exp) return null;
-        return (
-          <div className="slide-over-overlay" onClick={() => setDeletingExpenseId(null)}>
-            <div 
-              className="slide-over-container animate-slide-in" 
-              onClick={(e) => e.stopPropagation()}
-              style={{ direction: language === 'ar' ? 'rtl' : 'ltr' }}
-            >
-              {/* Header */}
-              <div className="slide-over-header" style={{ backgroundColor: '#FFF0F0', borderBottom: '1px solid #FFE0E0' }}>
-                <div className="client-badge-profile">
-                  <div className="profile-large-avatar" style={{ backgroundColor: '#D32F2F', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <AlertTriangle size={24} />
-                  </div>
-                  <div>
-                    <h3 className="profile-name-title" style={{ color: '#C62828' }}>
-                      {language === 'ar' ? 'تأكيد حذف المصاريف' : 'Delete Outlay Record'}
-                    </h3>
-                    <span className="profile-muted-date" style={{ color: '#A31D1D' }}>
-                      {language === 'ar' ? 'تحذير: هذا الإجراء لا يمكن التراجع عنه' : 'Warning: This action is permanent'}
-                    </span>
-                  </div>
-                </div>
-                <button onClick={() => setDeletingExpenseId(null)} className="close-slide-over-btn" aria-label="Close">
-                  <X size={18} />
-                </button>
-              </div>
-
-              {/* Content body info box */}
-              <div className="slide-over-content-body" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <div style={{ padding: '16px', border: '1px solid #FFE0E0', borderRadius: '12px', backgroundColor: '#FFF5F5', color: '#B82C2C', fontSize: '0.88rem', lineHeight: '1.5', fontWeight: '500' }}>
-                  {language === 'ar' ? (
-                    `أنت على وشك حذف المصروف المالي بقيمة ${exp.amount.toLocaleString()} DZ (${exp.description || exp.category}) بالكامل.`
-                  ) : (
-                    `You are about to delete expense record of ${exp.amount.toLocaleString()} DZ (${exp.description || exp.category}) from your workspace.`
-                  )}
-                  <br /><br />
-                  {language === 'ar' ? (
-                    'سيتم إلغاء ربط بند التكلفة نهائياً. النفقات المسجلة تلعب دوراً في حساب صافي أرباح وهوامش المشاريع التاريخية.'
-                  ) : (
-                    'This cost entry will be permanently removed. The deletion will automatically adjust the associated project\'s profitability margins.'
-                  )}
-                </div>
-              </div>
-
-              {/* Footer controls */}
-              <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: 'auto' }}>
-                <button type="button" onClick={() => setDeletingExpenseId(null)} className="btn-secondary" style={{ flex: 1 }}>
-                  {language === 'ar' ? 'إلغاء' : 'Cancel'}
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => handleConfirmDelete(exp.id)}
-                  className="submit-btn primary-submit" 
-                  style={{ backgroundColor: '#D32F2F', flex: 1 }}
-                >
-                  {language === 'ar' ? 'تأكيد الحذف' : 'Confirm Delete'}
-                </button>
-              </div>
-
-            </div>
-          </div>
-        );
-      })()}
 
     </div>
   );

@@ -4,7 +4,8 @@ import { AuthForm } from './components/AuthForm';
 import { PreviewSide } from './components/PreviewSide';
 import { Sidebar } from './components/Sidebar';
 import { DashboardView } from './components/DashboardView';
-import { AddProjectModal, AddClientModal, AddExpenseModal } from './components/Modals';
+import { AddProjectModal, AddClientModal } from './components/Modals';
+import { AddExpenseModal } from './components/AddExpenseModal';
 import { ClientsView } from './components/ClientsView';
 import { ProjectsView } from './components/ProjectsView';
 import { ProjectsDirectory } from './components/ProjectsDirectory';
@@ -186,6 +187,14 @@ const AuthAppContent: React.FC = () => {
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [paymentDefaultProjectId, setPaymentDefaultProjectId] = useState<string | undefined>();
+  const [paymentDefaultClientId, setPaymentDefaultClientId] = useState<string | undefined>();
+
+  const handleOpenAddPayment = (projectId?: string, clientId?: string) => {
+    setPaymentDefaultProjectId(projectId);
+    setPaymentDefaultClientId(clientId);
+    setIsPaymentModalOpen(true);
+  };
 
   // Helper log activity
   const logActivity = (textEn: string, textAr: string, type: 'project' | 'payment' | 'expense' | 'client') => {
@@ -568,6 +577,7 @@ const AuthAppContent: React.FC = () => {
                 onUpdateTask={handleUpdateTask}
                 onUpdateProject={handleUpdateProject}
                 onOpenAddProject={() => setIsProjectModalOpen(true)}
+                onOpenAddPayment={handleOpenAddPayment}
               />
             )}
 
@@ -582,6 +592,7 @@ const AuthAppContent: React.FC = () => {
                 onEditProject={handleUpdateProject}
                 onDeleteProject={handleDeleteProject}
                 onOpenAddProject={() => setIsProjectModalOpen(true)}
+                onOpenAddPayment={handleOpenAddPayment}
               />
             )}
 
@@ -637,6 +648,7 @@ const AuthAppContent: React.FC = () => {
               <ExpensesView 
                 expenses={expenses}
                 projects={projects}
+                onOpenAddExpense={() => setIsExpenseModalOpen(true)}
                 onAddExpense={handleAddExpense}
                 onEditExpense={handleEditExpense}
                 onDeleteExpense={handleDeleteExpense}
@@ -693,15 +705,22 @@ const AuthAppContent: React.FC = () => {
         onClose={() => setIsExpenseModalOpen(false)}
         projects={projects}
         onAddExpense={handleAddExpense}
+        onEditExpense={handleEditExpense}
       />
 
       <AddPaymentModal
         isOpen={isPaymentModalOpen}
-        onClose={() => setIsPaymentModalOpen(false)}
+        onClose={() => {
+          setIsPaymentModalOpen(false);
+          setPaymentDefaultProjectId(undefined);
+          setPaymentDefaultClientId(undefined);
+        }}
         clients={clients}
         projects={projects}
         payments={payments}
         onAddPayment={handleAddPayment}
+        defaultClientId={paymentDefaultClientId}
+        defaultProjectId={paymentDefaultProjectId}
       />
     </>
   );

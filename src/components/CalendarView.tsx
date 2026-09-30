@@ -1,7 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useLanguage } from './LanguageContext';
 import type { Project, Client, Milestone, Task } from '../types';
-import { Trash2 } from 'lucide-react';
+import { 
+  Trash2, 
+  Calendar as CalendarIcon, 
+  Clock, 
+  Flag, 
+  Sparkles, 
+  CheckCircle2, 
+  RefreshCw, 
+  ChevronLeft, 
+  ChevronRight, 
+  Layers
+} from 'lucide-react';
 
 interface CalendarViewProps {
   projects: Project[];
@@ -12,6 +23,18 @@ interface CalendarViewProps {
   onToggleMilestone?: (id: string, completed: boolean) => void;
   onDeleteMilestone?: (id: string) => void;
 }
+
+// Curated distinctive palettes for Gantt chart rows
+const GANTT_PALETTES = [
+  { name: 'blue', bg: '#EFF6FF', border: '#BFDBFE', text: '#1E40AF', bar: '#3B82F6', badge: '#DBEAFE' },
+  { name: 'emerald', bg: '#ECFDF5', border: '#A7F3D0', text: '#065F46', bar: '#10B981', badge: '#D1FAE5' },
+  { name: 'purple', bg: '#F5F3FF', border: '#DDD6FE', text: '#5B21B6', bar: '#8B5CF6', badge: '#EDE9FE' },
+  { name: 'orange', bg: '#FFF7ED', border: '#FED7AA', text: '#9A3412', bar: '#F97316', badge: '#FFEDD5' },
+  { name: 'teal', bg: '#F0FDFA', border: '#99F6E4', text: '#115E59', bar: '#14B8A6', badge: '#CCFBF1' },
+  { name: 'indigo', bg: '#EEF2FF', border: '#C7D2FE', text: '#3730A3', bar: '#6366F1', badge: '#E0E7FF' },
+  { name: 'amber', bg: '#FFFBEB', border: '#FDE68A', text: '#92400E', bar: '#F59E0B', badge: '#FEF3C7' },
+  { name: 'rose', bg: '#FFF1F2', border: '#FECDD3', text: '#9F1239', bar: '#F43F5E', badge: '#FFE4E6' },
+];
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
   projects,
@@ -24,17 +47,20 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 }) => {
   const { language } = useLanguage();
 
-  // Calendar sub-view mode ('gantt' | 'month')
+  // Current real-world reference date
+  const today = useMemo(() => new Date(), []);
+
+  // Calendar sub-view mode ('month' | 'gantt')
   const [calendarViewMode, setCalendarViewMode] = useState<'month' | 'gantt'>('month');
 
-  // Selected month index state for dynamic calendar
-  const [selectedMonthIndex, setSelectedMonthIndex] = useState(1); // Default to July (index 1 of Jun-Nov)
+  // Sidebar panel visibility (hidden by default)
+  const [showSidebar, setShowSidebar] = useState(false);
 
   // Mizaman (Sync) states
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string>('Never');
 
-  // Real milestones from Firestore / props (clean empty default, zero fake seeds)
+  // Real milestones from Firestore / props
   const [localMilestones, setLocalMilestones] = useState<Milestone[]>([]);
   const milestones = externalMilestones ?? localMilestones;
 
@@ -50,7 +76,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       setIsSyncing(false);
       const now = new Date();
       setLastSyncTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-    }, 1500);
+    }, 1200);
   };
 
   // Add a new milestone deadline
@@ -88,89 +114,211 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     }
   };
 
-  // --- Workload & Availability Predictor Calculations ---
-  const activeContracts = projects.filter(p => p.status === 'In Progress' || p.status === 'Waiting Client');
-  const maxWorkload = 3;
-  const currentWorkloadPercentage = Math.round((activeContracts.length / maxWorkload) * 100);
+  // --- Dynamic Month Range Calculations (Encompassing Today + All Projects) ---
+  const spannedMonths = useMemo(() => {
+    const dates = projects.flatMap(p => [
+      p.start_date ? new Date(p.start_date) : null,
+      p.end_date ? new Date(p.end_date) : null
+    ]).filter((d): d is Date => d !== null && !isNaN(d.getTime()));
 
-  let nextAvailableDate = '';
-  let nextAvailableDateAr = 'Available Now';
-  let nextProjectFreeingUp = '';
+    // For Monthly Grid: encompass 2 months before today and 3 months ahead (or active project dates)
+    const minD = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+    const maxD = new Date(today.getFullYear(), today.getMonth() + 3, 1);
 
-  if (activeContracts.length >= maxWorkload) {
-    const activeSorted = [...activeContracts].sort((a, b) => {
-      const dateA = a.end_date ? new Date(a.end_date).getTime() : Infinity;
-      const dateB = b.end_date ? new Date(b.end_date).getTime() : Infinity;
-      return dateA - dateB;
-    });
-
-    if (activeSorted[0] && activeSorted[0].end_date) {
-      const earliestEndDate = new Date(activeSorted[0].end_date);
-      const nextDay = new Date(earliestEndDate);
-      nextDay.setDate(nextDay.getDate() + 1);
-      nextAvailableDate = nextDay.toISOString().split('T')[0];
-      nextAvailableDateAr = nextDay.toLocaleDateString(language === 'ar' ? 'ar-DZ' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-      nextProjectFreeingUp = activeSorted[0].name;
+    if (dates.length > 0) {
+      const minProject = new Date(Math.min(...dates.map(d => d.getTime())));
+      const maxProject = new Date(Math.max(...dates.map(d => d.getTime())));
+      if (minProject < minD) minD.setFullYear(minProject.getFullYear(), minProject.getMonth(), 1);
+      if (maxProject > maxD) maxD.setFullYear(maxProject.getFullYear(), maxProject.getMonth(), 1);
     }
-  }
 
-  // --- Dynamic Month Range Calculations ---
-  const projectDates = projects.flatMap(p => [
-    p.start_date ? new Date(p.start_date) : null,
-    p.end_date ? new Date(p.end_date) : null
-  ]).filter((d): d is Date => d !== null);
-
-  let minDate = new Date('2026-06-01');
-  let maxDate = new Date('2026-11-30');
-
-  if (projectDates.length > 0) {
-    const calculatedMin = new Date(Math.min(...projectDates.map(d => d.getTime())));
-    const calculatedMax = new Date(Math.max(...projectDates.map(d => d.getTime())));
-    minDate = new Date(calculatedMin.getFullYear(), calculatedMin.getMonth(), 1);
-    maxDate = new Date(calculatedMax.getFullYear(), calculatedMax.getMonth(), 1);
-  }
-
-  const getSpannedMonths = () => {
     const list: Array<{ year: number; month: number; label: string; labelAr: string }> = [];
-    const current = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
-    const end = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
-    
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    const monthNamesAr = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
-    
+    const current = new Date(minD.getFullYear(), minD.getMonth(), 1);
+    const end = new Date(maxD.getFullYear(), maxD.getMonth(), 1);
+
+    const monthNamesEn = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthNamesAr = ['جانفي', 'فيفري', 'مارس', 'أفريل', 'ماي', 'جوان', 'جويلية', 'أوت', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+
     while (current <= end) {
       const y = current.getFullYear();
       const m = current.getMonth();
       list.push({
         year: y,
         month: m,
-        label: `${monthNames[m]} ${y}`,
+        label: `${monthNamesEn[m]} ${y}`,
         labelAr: `${monthNamesAr[m]} ${y}`
       });
       if (list.length > 36) break;
       current.setMonth(current.getMonth() + 1);
     }
     return list;
-  };
+  }, [projects, today]);
 
-  const spannedMonths = getSpannedMonths();
-  const clampedMonthIndex = Math.max(0, Math.min(spannedMonths.length - 1, selectedMonthIndex));
-  const activeMonth = spannedMonths[clampedMonthIndex] || { year: 2026, month: 6, label: 'July 2026', labelAr: 'يوليو 2026' };
+  // Determine the default month index matching TODAY
+  const defaultCurrentMonthIndex = useMemo(() => {
+    const idx = spannedMonths.findIndex(
+      m => m.year === today.getFullYear() && m.month === today.getMonth()
+    );
+    return idx >= 0 ? idx : 0;
+  }, [spannedMonths, today]);
+
+  // Selected month index state (defaults to today's month, can be changed by user)
+  const [selectedMonthIndex, setSelectedMonthIndex] = useState<number | null>(null);
+  const activeMonthIndex = selectedMonthIndex ?? defaultCurrentMonthIndex;
+  const clampedMonthIndex = Math.max(0, Math.min(spannedMonths.length - 1, activeMonthIndex));
+  const activeMonth = spannedMonths[clampedMonthIndex] || spannedMonths[0];
+
+  // --- Gantt Chart Focused Planning Range ("En cours" Only by Default) ---
+  const [showAllInGantt, setShowAllInGantt] = useState(false);
+
+  // Active / Ongoing projects for Gantt timeline
+  const ganttProjects = useMemo(() => {
+    if (showAllInGantt) return projects;
+    return projects.filter(p => 
+      p.status !== 'Completed' && 
+      p.status !== 'Delivered' && 
+      p.status !== 'Cancelled'
+    );
+  }, [projects, showAllInGantt]);
+
+  // Gantt months strictly between earliest active project and latest active project (+ today)
+  const ganttMonths = useMemo(() => {
+    const dates: Date[] = [];
+
+    ganttProjects.forEach(p => {
+      if (p.start_date) {
+        const d = new Date(p.start_date);
+        if (!isNaN(d.getTime())) dates.push(d);
+      }
+      if (p.end_date) {
+        const d = new Date(p.end_date);
+        if (!isNaN(d.getTime())) dates.push(d);
+      }
+    });
+
+    // Always include current real date so "Today" is within the range
+    dates.push(today);
+
+    const minTime = Math.min(...dates.map(d => d.getTime()));
+    const maxTime = Math.max(...dates.map(d => d.getTime()));
+
+    const minD = new Date(minTime);
+    const maxD = new Date(maxTime);
+
+    const current = new Date(minD.getFullYear(), minD.getMonth(), 1);
+    const end = new Date(maxD.getFullYear(), maxD.getMonth(), 1);
+
+    const list: Array<{ year: number; month: number; label: string; labelAr: string }> = [];
+    const monthNamesEn = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthNamesAr = ['جانفي', 'فيفري', 'مارس', 'أفريل', 'ماي', 'جوان', 'جويلية', 'أوت', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+
+    while (current <= end) {
+      const y = current.getFullYear();
+      const m = current.getMonth();
+      list.push({
+        year: y,
+        month: m,
+        label: `${monthNamesEn[m]} ${y}`,
+        labelAr: `${monthNamesAr[m]} ${y}`
+      });
+      if (list.length > 24) break;
+      current.setMonth(current.getMonth() + 1);
+    }
+
+    return list;
+  }, [ganttProjects, today]);
+
+  // Min and Max dates for Gantt timeline
+  const ganttTimelineMinDate = useMemo(() => {
+    if (ganttMonths.length === 0) return new Date(today.getFullYear(), today.getMonth(), 1);
+    const first = ganttMonths[0];
+    return new Date(first.year, first.month, 1, 0, 0, 0);
+  }, [ganttMonths, today]);
+
+  const ganttTimelineMaxDate = useMemo(() => {
+    if (ganttMonths.length === 0) return new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59);
+    const last = ganttMonths[ganttMonths.length - 1];
+    return new Date(last.year, last.month + 1, 0, 23, 59, 59);
+  }, [ganttMonths, today]);
 
   // Gantt chart horizontal position calculator
   const getTimelinePosition = (startDateStr?: string, endDateStr?: string) => {
-    const minTime = minDate.getTime();
-    const maxTime = maxDate.getTime();
-    const totalDuration = maxTime - minTime;
+    const minTime = ganttTimelineMinDate.getTime();
+    const maxTime = ganttTimelineMaxDate.getTime();
+    const totalDuration = maxTime - minTime || 1;
 
-    const start = startDateStr ? new Date(startDateStr).getTime() : minTime;
-    const end = endDateStr ? new Date(endDateStr).getTime() : maxTime;
+    let start = startDateStr ? new Date(startDateStr).getTime() : minTime;
+    let end = endDateStr 
+      ? new Date(endDateStr).getTime() 
+      : (startDateStr ? new Date(startDateStr).getTime() + 21 * 86400000 : maxTime);
 
-    const leftPercent = Math.max(0, Math.min(95, ((start - minTime) / totalDuration) * 100));
-    const widthPercent = Math.max(8, Math.min(100 - leftPercent, ((end - start) / totalDuration) * 100));
+    if (isNaN(start)) start = minTime;
+    if (isNaN(end)) end = maxTime;
+    if (end < start) end = start + 86400000;
 
-    return { left: `${leftPercent}%`, width: `${widthPercent}%` };
+    const clampStart = Math.max(minTime, Math.min(maxTime, start));
+    const clampEnd = Math.max(clampStart, Math.min(maxTime, end));
+
+    const leftPercent = ((clampStart - minTime) / totalDuration) * 100;
+    const rawWidthPercent = ((clampEnd - clampStart) / totalDuration) * 100;
+    const widthPercent = Math.max(10, Math.min(100 - leftPercent, rawWidthPercent));
+
+    return { 
+      left: `${Math.max(0, Math.min(100 - widthPercent, leftPercent))}%`, 
+      width: `${widthPercent}%` 
+    };
   };
+
+  // --- Real-World Workload & Capacity Logic (Remaining Effort Calculation) ---
+  // Workload is driven by REMAINING effort across active projects (100% - progress)
+  const activeContracts = projects.filter(p => p.status === 'In Progress' || p.status === 'Waiting Client');
+
+  const totalRemainingUnits = useMemo(() => {
+    return activeContracts.reduce((sum, p) => {
+      const isFinished = p.status === 'Completed' || p.status === 'Delivered';
+      const progress = isFinished ? 100 : Math.min(100, Math.max(0, p.progress_percentage || 0));
+      const remainingEffort = (100 - progress) / 100; // e.g. 1% prog -> 0.99 unit; 99% prog -> 0.01 unit
+      return sum + remainingEffort;
+    }, 0);
+  }, [activeContracts]);
+
+  // Baseline concurrency capacity: 3 full projects at 100% remaining effort
+  const targetCapacityUnits = 3.0;
+  const currentWorkloadPercentage = Math.min(100, Math.round((totalRemainingUnits / targetCapacityUnits) * 100));
+
+  const avgActiveProgress = activeContracts.length > 0
+    ? Math.round(activeContracts.reduce((s, p) => s + (p.progress_percentage || 0), 0) / activeContracts.length)
+    : 0;
+
+  // Predict availability and next freeing contract
+  const sortedActiveByDeadline = useMemo(() => {
+    return [...activeContracts]
+      .filter(p => p.end_date)
+      .sort((a, b) => new Date(a.end_date!).getTime() - new Date(b.end_date!).getTime());
+  }, [activeContracts]);
+
+  let nextAvailableDateAr = language === 'ar' ? 'متاح الآن لاستقبال مشاريع' : 'Available Now for Projects';
+  let nextProjectFreeingUp = '';
+
+  if (sortedActiveByDeadline.length > 0 && currentWorkloadPercentage >= 70) {
+    const earliest = sortedActiveByDeadline[0];
+    const dateObj = new Date(earliest.end_date!);
+    nextAvailableDateAr = dateObj.toLocaleDateString(language === 'ar' ? 'ar-DZ' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    nextProjectFreeingUp = earliest.name;
+  }
+
+  // Workload status presentation
+  const workloadStatusTitle = currentWorkloadPercentage >= 75
+    ? (language === 'ar' ? 'حالة العمل: ضغط مرتفع (القدرة الاستيعابية مشغولة)' : 'Workspace: High Workload (Near Full Capacity)')
+    : currentWorkloadPercentage >= 35
+      ? (language === 'ar' ? 'حالة العمل: ضغط معتدل (قبول مشاريع مختارة)' : 'Workspace: Moderate Workload (Selective)')
+      : (language === 'ar' ? 'حالة العمل: متاح وجاهز لمشاريع جديدة' : 'Workspace: Open & Ready for New Projects');
+
+  const workloadStatusClass = currentWorkloadPercentage >= 75 ? 'busy' : currentWorkloadPercentage >= 35 ? 'moderate' : 'free';
+
+  const workloadSubtitle = language === 'ar'
+    ? `المشاريع الجارية: ${activeContracts.length} | متوسط الإنجاز: ${avgActiveProgress}% | الجهد المتبقي المطلوب: ${totalRemainingUnits.toFixed(1)} مشروع كامل`
+    : `${activeContracts.length} active projects · ${avgActiveProgress}% avg progress · ${totalRemainingUnits.toFixed(1)} full project units remaining`;
 
   return (
     <div className="dashboard-content-area animate-fade-in">
@@ -192,30 +340,57 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           
           <div className="calendar-header-timeline-row">
             <div>
-              <h3 className="calendar-date-header" style={{ fontSize: '1.25rem', fontWeight: 500 }}>
+              <h3 className="calendar-date-header" style={{ fontSize: '1.25rem', fontWeight: 600 }}>
                 {language === 'ar' ? 'مخطط وجدول المواعيد الذكي' : 'Smart Deadlines & Planner'}
               </h3>
               <p className="availability-subtitle" style={{ fontSize: '0.82rem', color: 'var(--text-placeholder)', margin: '4px 0 0 0' }}>
                 {language === 'ar'
-                  ? 'رصد تواريخ تسليم العقود، بدايات المشاريع، والمهام المطلوبة ديناميكياً'
-                  : 'Monitor active delivery contracts, starting dates, and custom milestone deadlines.'
+                  ? 'رصد تواريخ تسليم العقود، بدايات المشاريع، والمهام المطلوبة بدقة'
+                  : 'Monitor contract delivery deadlines, starting dates, and custom milestones.'
                 }
               </p>
             </div>
             
-            {/* View Mode Selector Pill */}
-            <div className="calendar-view-type-tabs">
-              <button 
-                onClick={() => setCalendarViewMode('month')}
-                className={`view-type-tab-pill ${calendarViewMode === 'month' ? 'active' : ''}`}
+            {/* View Mode Selector Pill & Sidebar Toggle */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <div className="calendar-view-type-tabs">
+                <button 
+                  onClick={() => setCalendarViewMode('month')}
+                  className={`view-type-tab-pill ${calendarViewMode === 'month' ? 'active' : ''}`}
+                >
+                  <CalendarIcon size={14} style={{ display: 'inline', marginInlineEnd: '6px' }} />
+                  {language === 'ar' ? 'تقويم شهري' : 'Monthly Grid'}
+                </button>
+                <button 
+                  onClick={() => setCalendarViewMode('gantt')}
+                  className={`view-type-tab-pill ${calendarViewMode === 'gantt' ? 'active' : ''}`}
+                >
+                  <Layers size={14} style={{ display: 'inline', marginInlineEnd: '6px' }} />
+                  {language === 'ar' ? 'مخطط Gantt' : 'Gantt Chart'}
+                </button>
+              </div>
+
+              {/* Sidebar Panel Toggle Button (Hidden by default) */}
+              <button
+                type="button"
+                onClick={() => setShowSidebar(prev => !prev)}
+                className={`calendar-panel-toggle-btn ${showSidebar ? 'active' : ''}`}
+                title={showSidebar 
+                  ? (language === 'ar' ? 'إخفاء لوحة المراحل والمزامنة' : 'Hide Milestones & Sync Panel') 
+                  : (language === 'ar' ? 'إظهار لوحة المراحل والمزامنة' : 'Show Milestones & Sync Panel')}
               >
-                {language === 'ar' ? 'تقويم شهري' : 'Monthly Grid'}
-              </button>
-              <button 
-                onClick={() => setCalendarViewMode('gantt')}
-                className={`view-type-tab-pill ${calendarViewMode === 'gantt' ? 'active' : ''}`}
-              >
-                {language === 'ar' ? 'مخطط Gantt' : 'Gantt Chart'}
+                <Flag size={13} />
+                <span>
+                  {showSidebar
+                    ? (language === 'ar' ? 'إخفاء المراحل والمزامنة' : 'Hide Panel')
+                    : (language === 'ar' ? 'المراحل والمزامنة' : 'Milestones & Sync')
+                  }
+                </span>
+                {milestones.filter(m => !m.completed).length > 0 && (
+                  <span className="panel-toggle-counter">
+                    {milestones.filter(m => !m.completed).length}
+                  </span>
+                )}
               </button>
             </div>
           </div>
@@ -224,9 +399,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             /* Dynamic Monthly Grid Calendar */
             <div className="month-grid-wrapper">
               <div className="month-grid-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <span className="month-grid-title">
-                  {language === 'ar' ? activeMonth.labelAr : activeMonth.label}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span className="month-grid-title">
+                    {language === 'ar' ? activeMonth.labelAr : activeMonth.label}
+                  </span>
+                  {activeMonth.year === today.getFullYear() && activeMonth.month === today.getMonth() && (
+                    <span className="current-month-badge">
+                      {language === 'ar' ? 'الشهر الحالي' : 'Current Month'}
+                    </span>
+                  )}
+                </div>
                 
                 {/* Month Navigation Controls */}
                 <div className="month-pagination-controls" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -236,7 +418,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     className="month-pager-btn"
                     title={language === 'ar' ? 'الشهر السابق' : 'Previous Month'}
                   >
-                    ◀
+                    <ChevronLeft size={14} />
                   </button>
                   
                   <select 
@@ -257,60 +439,110 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     className="month-pager-btn"
                     title={language === 'ar' ? 'الشهر التالي' : 'Next Month'}
                   >
-                    ▶
+                    <ChevronRight size={14} />
+                  </button>
+
+                  <button
+                    onClick={() => setSelectedMonthIndex(defaultCurrentMonthIndex)}
+                    className="btn-today-shortcut"
+                    title={language === 'ar' ? 'الرجوع لليوم' : 'Jump to Today'}
+                  >
+                    {language === 'ar' ? 'اليوم' : 'Today'}
                   </button>
                 </div>
               </div>
 
+              {/* Day names header */}
               <div className="month-days-names-row">
-                <span>{language === 'ar' ? 'أحد' : 'Sun'}</span>
-                <span>{language === 'ar' ? 'إثنين' : 'Mon'}</span>
-                <span>{language === 'ar' ? 'ثلاثاء' : 'Tue'}</span>
-                <span>{language === 'ar' ? 'أربعاء' : 'Wed'}</span>
-                <span>{language === 'ar' ? 'خميس' : 'Thu'}</span>
-                <span>{language === 'ar' ? 'جمعة' : 'Fri'}</span>
-                <span>{language === 'ar' ? 'سبت' : 'Sat'}</span>
+                <span>{language === 'ar' ? 'الأحد' : 'Sun'}</span>
+                <span>{language === 'ar' ? 'الإثنين' : 'Mon'}</span>
+                <span>{language === 'ar' ? 'الثلاثاء' : 'Tue'}</span>
+                <span>{language === 'ar' ? 'الأربعاء' : 'Wed'}</span>
+                <span>{language === 'ar' ? 'الخميس' : 'Thu'}</span>
+                <span>{language === 'ar' ? 'الجمعة' : 'Fri'}</span>
+                <span>{language === 'ar' ? 'السبت' : 'Sat'}</span>
               </div>
 
+              {/* Calendar Grid Cells */}
               <div className="month-grid-cells">
-                {/* Dynamic blank padding cells */}
+                {/* Blank padding cells before 1st of month */}
                 {Array.from({ length: new Date(activeMonth.year, activeMonth.month, 1).getDay() }).map((_, idx) => (
                   <div key={`empty-${idx}`} className="grid-cell empty-cell"></div>
                 ))}
 
-                {/* Dynamic day cells */}
+                {/* Day cells */}
                 {Array.from({ length: new Date(activeMonth.year, activeMonth.month + 1, 0).getDate() }).map((_, i) => {
                   const dayNum = i + 1;
                   const dateStr = `${activeMonth.year}-${String(activeMonth.month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
                   
+                  const isToday = 
+                    activeMonth.year === today.getFullYear() && 
+                    activeMonth.month === today.getMonth() && 
+                    dayNum === today.getDate();
+
                   const projectsStarting = projects.filter(p => p.start_date === dateStr);
                   const projectsEnding = projects.filter(p => p.end_date === dateStr);
                   const milestonesDue = milestones.filter(m => m.date === dateStr);
 
                   const hasEvents = projectsStarting.length > 0 || projectsEnding.length > 0 || milestonesDue.length > 0;
+                  const hasDeadline = projectsEnding.length > 0;
 
                   return (
-                    <div key={dayNum} className={`grid-cell day-cell ${hasEvents ? 'has-events' : ''}`}>
-                      <span className="day-number">{dayNum}</span>
+                    <div 
+                      key={dayNum} 
+                      className={`grid-cell day-cell ${hasEvents ? 'has-events' : ''} ${hasDeadline ? 'has-deadline-cell' : ''} ${isToday ? 'is-today' : ''}`}
+                    >
+                      <div className="day-cell-top-bar">
+                        <span className={`day-number ${isToday ? 'today-badge' : ''}`}>{dayNum}</span>
+                        {isToday && (
+                          <span className="today-marker-pill">
+                            {language === 'ar' ? 'اليوم' : 'Today'}
+                          </span>
+                        )}
+                        {hasDeadline && !isToday && (
+                          <span className="deadline-dot-indicator" title={language === 'ar' ? 'يوجد موعد تسليم' : 'Project Deadline'} />
+                        )}
+                      </div>
+
                       <div className="day-events-container">
+                        {/* 1. Projects with Deadlines (Highest priority visual) */}
+                        {projectsEnding.map(p => {
+                          const client = clients.find(c => c.id === p.client_id);
+                          const cellDate = new Date(dateStr);
+                          const diffTime = cellDate.getTime() - today.setHours(0, 0, 0, 0);
+                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                          const isOverdue = diffDays < 0 && p.status !== 'Completed' && p.status !== 'Delivered';
+                          const isUrgent = diffDays >= 0 && diffDays <= 3 && p.status !== 'Completed' && p.status !== 'Delivered';
+
+                          return (
+                            <div 
+                              key={`end-${p.id}`} 
+                              className={`day-event-badge event-deadline ${isOverdue ? 'overdue' : isUrgent ? 'urgent' : ''}`} 
+                              title={`${language === 'ar' ? 'موعد تسليم' : 'Deadline'}: ${p.name} · ${client ? client.name : ''} (${p.status})`}
+                            >
+                              <Flag size={10} className="event-badge-icon" />
+                              <span className="event-badge-text">{p.name}</span>
+                              <span className="event-badge-type-tag">
+                                {isOverdue ? (language === 'ar' ? 'متأخر' : 'Overdue') : (language === 'ar' ? 'تسليم' : 'Due')}
+                              </span>
+                            </div>
+                          );
+                        })}
+
+                        {/* 2. Projects Starting */}
                         {projectsStarting.map(p => (
                           <div 
                             key={`start-${p.id}`} 
                             className="day-event-badge event-start" 
-                            title={`Start: ${p.name}`}
+                            title={`${language === 'ar' ? 'بداية المشروع' : 'Start Date'}: ${p.name}`}
                           >
-                            🚀 {p.name.substring(0, 10)}...
+                            <Sparkles size={10} className="event-badge-icon" />
+                            <span className="event-badge-text">{p.name}</span>
+                            <span className="event-badge-type-tag">{language === 'ar' ? 'بداية' : 'Start'}</span>
                           </div>
                         ))}
-                        {projectsEnding.map(p => (
-                          <div 
-                            key={`end-${p.id}`} 
-                            className="day-event-badge event-deadline" 
-                            title={`Deadline: ${p.name}`}
-                          >
-                            🏁 {p.name.substring(0, 10)}...
-                          </div>
-                        ))}
+
+                        {/* 3. Milestones Due */}
                         {milestonesDue.map(m => {
                           const proj = projects.find(p => p.id === m.project_id);
                           return (
@@ -318,9 +550,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                               key={`m-${m.id}`} 
                               className={`day-event-badge event-milestone ${m.completed ? 'completed' : ''}`}
                               onClick={() => handleToggleMilestone(m.id)}
-                              title={`Milestone: ${m.title} (${proj ? proj.name : ''}) - Click to toggle completion`}
+                              title={`${m.title} (${proj ? proj.name : ''}) - ${language === 'ar' ? 'انقر لتأكيد الإنجاز' : 'Click to toggle completion'}`}
                             >
-                              📌 {m.title}
+                              <CheckCircle2 size={10} className="event-badge-icon" />
+                              <span className="event-badge-text">{m.title}</span>
                             </div>
                           );
                         })}
@@ -331,107 +564,189 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               </div>
             </div>
           ) : (
-            /* Gantt Chart (Spans across calculated range) */
+            /* Gantt Chart (Focused range between first and last active project with distinct palettes) */
             <div className="gantt-chart-wrapper">
+              
+              {/* Gantt Top Range & Filter Bar */}
+              <div className="gantt-top-filter-bar">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                    {language === 'ar' ? 'المخطط الزمني للمشاريع' : 'Project Timeline'}
+                  </span>
+                  {ganttMonths.length > 0 && (
+                    <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                      ({language === 'ar' ? ganttMonths[0].labelAr : ganttMonths[0].label}
+                      {' → '}
+                      {language === 'ar' ? ganttMonths[ganttMonths.length - 1].labelAr : ganttMonths[ganttMonths.length - 1].label})
+                    </span>
+                  )}
+                </div>
+                <div className="gantt-filter-pill-group">
+                  <button 
+                    type="button"
+                    onClick={() => setShowAllInGantt(false)}
+                    className={`gantt-filter-pill-btn ${!showAllInGantt ? 'active' : ''}`}
+                    title={language === 'ar' ? 'عرض المشاريع الجارية فقط' : 'Show ongoing projects only'}
+                  >
+                    {language === 'ar' 
+                      ? `المشاريع الجارية (${projects.filter(p => p.status !== 'Completed' && p.status !== 'Delivered' && p.status !== 'Cancelled').length})` 
+                      : `In Progress (${projects.filter(p => p.status !== 'Completed' && p.status !== 'Delivered' && p.status !== 'Cancelled').length})`
+                    }
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setShowAllInGantt(true)}
+                    className={`gantt-filter-pill-btn ${showAllInGantt ? 'active' : ''}`}
+                    title={language === 'ar' ? 'عرض جميع المشاريع بما فيها المنتهية' : 'Show all projects including completed'}
+                  >
+                    {language === 'ar' ? `جميع المشاريع (${projects.length})` : `All Projects (${projects.length})`}
+                  </button>
+                </div>
+              </div>
+
               <div className="gantt-months-header-row">
                 <div className="gantt-y-axis-spacer">
                   <span>{language === 'ar' ? 'المشروع' : 'PROJECT'}</span>
                 </div>
                 <div className="gantt-months-cols-wrapper">
-                  {spannedMonths.map((m, idx) => (
-                    <div key={idx} className="gantt-month-col-label">
-                      <span>{language === 'ar' ? m.labelAr.split(' ')[0] : m.label.split(' ')[0]}</span>
-                    </div>
-                  ))}
+                  {ganttMonths.map((m, idx) => {
+                    const isCurrentM = m.year === today.getFullYear() && m.month === today.getMonth();
+                    return (
+                      <div key={idx} className={`gantt-month-col-label ${isCurrentM ? 'current-col' : ''}`}>
+                        <span>{language === 'ar' ? m.labelAr.split(' ')[0] : m.label.split(' ')[0]}</span>
+                        {isCurrentM && <div className="gantt-today-line-indicator" />}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
               <div className="gantt-rows-stack">
-                {projects.map((proj) => {
-                  const client = clients.find(c => c.id === proj.client_id);
-                  const { left, width } = getTimelinePosition(proj.start_date, proj.end_date);
-                  const catClass = 
-                    proj.category.toLowerCase().includes('design') ? 'yellow-block' :
-                    proj.category.toLowerCase().includes('dev') ? 'pink-block' :
-                    proj.category.toLowerCase().includes('market') ? 'blue-block' : 'red-block';
+                {ganttProjects.length === 0 ? (
+                  <div style={{ padding: '36px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    {language === 'ar' ? 'لا توجد مشاريع جارية في هذه الفترة.' : 'No active projects scheduled on timeline.'}
+                  </div>
+                ) : (
+                  ganttProjects.map((proj, idx) => {
+                    const client = clients.find(c => c.id === proj.client_id);
+                    const { left, width } = getTimelinePosition(proj.start_date, proj.end_date);
+                    const palette = GANTT_PALETTES[idx % GANTT_PALETTES.length];
+                    const isFinished = proj.status === 'Completed' || proj.status === 'Delivered';
+                    const effectiveProgress = isFinished ? 100 : (proj.progress_percentage || 0);
 
-                  return (
-                    <div key={proj.id} className="gantt-row-item">
-                      <div className="gantt-row-project-label">
-                        <span className="gantt-proj-name-txt">{proj.name}</span>
-                        <span className="gantt-proj-cat-txt">{proj.category}</span>
-                      </div>
-
-                      <div className="gantt-row-track-lane">
-                        <div className="gantt-track-month-grids">
-                          {spannedMonths.map((_, idx) => (
-                            <div key={idx} className="grid-separator-col"></div>
-                          ))}
-                        </div>
-
-                        <div 
-                          className={`gantt-project-span-bar ${catClass}`}
-                          style={{ left, width }}
-                          title={`${proj.name} (${proj.start_date || 'Jul 1'} - ${proj.end_date || 'Aug 30'})`}
-                        >
-                          <div className="span-bar-content">
-                            <span className="span-client-txt">{client ? client.name : 'Independent'}</span>
-                            <span className="span-dates-txt">({proj.start_date ? proj.start_date.substring(5) : 'Jul'} - {proj.end_date ? proj.end_date.substring(5) : 'Aug'})</span>
+                    return (
+                      <div key={proj.id} className="gantt-row-item">
+                        <div className="gantt-row-project-label">
+                          <span className="gantt-proj-name-txt">{proj.name}</span>
+                          <div className="gantt-proj-meta-row">
+                            <span className="gantt-proj-cat-txt">{proj.category}</span>
+                            <span 
+                              className="gantt-status-tag"
+                              style={{ 
+                                backgroundColor: palette.badge, 
+                                color: palette.text,
+                                borderColor: palette.border 
+                              }}
+                            >
+                              {proj.status}
+                            </span>
                           </div>
-                          <div className="span-bar-progress-line" style={{ width: `${proj.status === 'Completed' || proj.status === 'Delivered' ? 100 : proj.progress_percentage}%` }}></div>
+                        </div>
+
+                        <div className="gantt-row-track-lane">
+                          <div className="gantt-track-month-grids">
+                            {ganttMonths.map((_, mIdx) => (
+                              <div key={mIdx} className="grid-separator-col"></div>
+                            ))}
+                          </div>
+
+                          <div 
+                            className="gantt-project-span-bar"
+                            style={{ 
+                              left, 
+                              width,
+                              backgroundColor: palette.bg,
+                              borderColor: palette.border,
+                              color: palette.text
+                            }}
+                            title={`${proj.name} (${proj.start_date || 'Start'} → ${proj.end_date || 'End'}) · ${effectiveProgress}%`}
+                          >
+                            <div className="span-bar-content">
+                              <div className="span-bar-top-row">
+                                <span className="span-client-txt">{client ? client.name : (language === 'ar' ? 'مشروع مستقل' : 'Independent')}</span>
+                                <span className="span-progress-badge">{effectiveProgress}%</span>
+                              </div>
+                              <span className="span-dates-txt">
+                                {proj.start_date ? proj.start_date.substring(5) : '—'} 
+                                {' → '} 
+                                {proj.end_date ? proj.end_date.substring(5) : (language === 'ar' ? 'قيد التنفيذ' : 'Ongoing')}
+                              </span>
+                            </div>
+                            <div 
+                              className="span-bar-progress-line" 
+                              style={{ 
+                                width: `${effectiveProgress}%`,
+                                backgroundColor: palette.bar
+                              }}
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
           )}
 
-          {/* Availability Predictor */}
+          {/* 3. Availability & Workload Predictor Widget */}
           <div className="availability-predictor-widget" style={{ marginTop: '24px' }}>
             <div className="availability-widget-inner">
               <div className="availability-status-head">
-                <span className={`availability-glow-dot ${activeContracts.length >= maxWorkload ? 'busy' : 'free'}`}></span>
+                <span className={`availability-glow-dot ${workloadStatusClass}`}></span>
                 <div>
                   <h4 className="availability-title">
-                    {activeContracts.length >= maxWorkload 
-                      ? (language === 'ar' ? 'حالة العمل: ممتلئ بالكامل (القدرة الاستيعابية قصوى)' : 'Workspace Status: Fully Booked (At Maximum Capacity)')
-                      : (language === 'ar' ? 'حالة العمل: متاح حالياً لاستقبال مشاريع جديدة' : 'Workspace Status: Open for New Projects')
-                    }
+                    {workloadStatusTitle}
                   </h4>
                   <p className="availability-subtitle" style={{ fontSize: '0.78rem', color: 'var(--text-placeholder)', margin: '2px 0 0 0' }}>
-                    {language === 'ar' 
-                      ? `المشاريع الجارية قيد التنفيذ حالياً: ${activeContracts.length} من أصل ${maxWorkload}`
-                      : `Active contracts in progress: ${activeContracts.length} out of ${maxWorkload} maximum target workload`
-                    }
+                    {workloadSubtitle}
                   </p>
                 </div>
               </div>
 
               <div className="availability-details-grid" style={{ marginTop: '20px' }}>
                 <div className="availability-kpi-item">
-                  <span className="availability-kpi-label">{language === 'ar' ? 'أقرب وقت لاستقبال مشروع جديد' : 'Next Available Slot'}</span>
-                  <span className={`availability-kpi-val ${activeContracts.length >= maxWorkload ? 'highlight-orange' : 'highlight-green'}`} title={nextAvailableDate}>
+                  <span className="availability-kpi-label">
+                    <Clock size={12} style={{ display: 'inline', marginInlineEnd: '4px', verticalAlign: '-1px' }} />
+                    {language === 'ar' ? 'أقرب وقت لاستقبال مشروع جديد' : 'Next Available Slot'}
+                  </span>
+                  <span className={`availability-kpi-val ${currentWorkloadPercentage >= 75 ? 'highlight-orange' : 'highlight-green'}`}>
                     {nextAvailableDateAr}
                   </span>
                 </div>
                 
-                {activeContracts.length >= maxWorkload && (
+                {sortedActiveByDeadline.length > 0 && currentWorkloadPercentage >= 70 && (
                   <div className="availability-kpi-item">
-                    <span className="availability-kpi-label">{language === 'ar' ? 'السبب (المشروع الأول اكتمالاً)' : 'Earliest Freeing Contract'}</span>
+                    <span className="availability-kpi-label">{language === 'ar' ? 'أول مشروع يكتمل ويفرغ وقتاً' : 'Earliest Freeing Contract'}</span>
                     <span className="availability-kpi-val" style={{ fontSize: '0.85rem' }}>{nextProjectFreeingUp}</span>
                   </div>
                 )}
 
                 <div className="availability-kpi-item">
-                  <span className="availability-kpi-label">{language === 'ar' ? 'مستوى ضغط العمل الجاري' : 'Current Workload'}</span>
+                  <span className="availability-kpi-label">{language === 'ar' ? 'متوسط إنجاز المشاريع الجارية' : 'Active Projects Progress'}</span>
+                  <span className="availability-kpi-val font-mono" style={{ color: avgActiveProgress >= 70 ? '#0E4F2F' : 'var(--text-main)' }}>
+                    {avgActiveProgress}%
+                  </span>
+                </div>
+
+                <div className="availability-kpi-item">
+                  <span className="availability-kpi-label">{language === 'ar' ? 'مستوى ضغط العمل الفعلي' : 'Effective Workload Pressure'}</span>
                   <div className="availability-progress-capsule">
                     <div 
                       className="availability-progress-fill" 
                       style={{ 
                         width: `${currentWorkloadPercentage}%`, 
-                        backgroundColor: currentWorkloadPercentage >= 100 ? '#D32F2F' : (currentWorkloadPercentage >= 65 ? 'var(--accent-orange)' : 'var(--btn-primary)') 
+                        backgroundColor: currentWorkloadPercentage >= 75 ? '#D32F2F' : (currentWorkloadPercentage >= 40 ? 'var(--accent-orange)' : '#0E4F2F') 
                       }}
                     ></div>
                     <span className="availability-percent-text">{currentWorkloadPercentage}%</span>
@@ -443,11 +758,27 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
         </div>
 
-        {/* Right Column: Sidebar controls (30%) */}
-        <div className="calendar-right-section">
-          
-          {/* Sync Widget */}
-          <div className="calendar-sidebar-card widget-sync">
+        {/* Right Column: Sidebar controls (30%) - Hidden by default */}
+        {showSidebar && (
+          <div className="calendar-right-section animate-fade-in">
+            
+            {/* Header Close Strip */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px 4px 4px' }}>
+              <span style={{ fontSize: '0.80rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                {language === 'ar' ? 'المراحل وجدولة المواعيد' : 'Milestones & Sync'}
+              </span>
+              <button 
+                type="button"
+                onClick={() => setShowSidebar(false)}
+                style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-placeholder)', padding: '4px', fontSize: '0.9rem', lineHeight: 1 }}
+                title={language === 'ar' ? 'إغلاق اللوحة' : 'Close panel'}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Sync Widget */}
+            <div className="calendar-sidebar-card widget-sync">
             <h4 className="sidebar-card-title">{language === 'ar' ? 'مزامنة المواعيد' : 'Calendar Synchronization'}</h4>
             <p className="sidebar-card-desc" style={{ margin: '4px 0 12px 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
               {language === 'ar' ? 'مزامنة مواعيد العقود مع حساب Google أو Outlook الخاص بك.' : 'Sync deadline milestones with your external schedule calendars.'}
@@ -457,17 +788,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               disabled={isSyncing} 
               className={`btn-sync-action ${isSyncing ? 'loading' : ''}`}
             >
-              {isSyncing ? (
-                <>
-                  <span className="sync-spinner">🔄</span>
-                  <span>{language === 'ar' ? 'جاري المزامنة...' : 'Syncing Deadlines...'}</span>
-                </>
-              ) : (
-                <>
-                  <span>🔄</span>
-                  <span>{language === 'ar' ? 'مزامنة المواعيد' : 'Sync Calendar Now'}</span>
-                </>
-              )}
+              <RefreshCw size={14} className={isSyncing ? 'sync-spinner' : ''} />
+              <span>
+                {isSyncing 
+                  ? (language === 'ar' ? 'جاري المزامنة...' : 'Syncing Deadlines...') 
+                  : (language === 'ar' ? 'مزامنة المواعيد الآن' : 'Sync Calendar Now')}
+              </span>
             </button>
             <div className="sync-timestamp-row">
               <span className="timestamp-lbl">{language === 'ar' ? 'آخر مزامنة:' : 'Last Synced:'}</span>
@@ -477,7 +803,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
           {/* Milestones Checklist */}
           <div className="calendar-sidebar-card widget-milestones">
-            <h4 className="sidebar-card-title">{language === 'ar' ? 'المواعيد والمراحل الهامة' : 'Milestones & Deadlines'}</h4>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <h4 className="sidebar-card-title" style={{ margin: 0 }}>
+                {language === 'ar' ? 'المواعيد والمراحل الهامة' : 'Milestones & Deadlines'}
+              </h4>
+              <span className="milestone-counter-badge">
+                {milestones.filter(m => !m.completed).length}
+              </span>
+            </div>
             
             <div className="milestones-checklist">
               {milestones.length === 0 ? (
@@ -493,9 +826,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 milestones.map(m => {
                   const proj = projects.find(p => p.id === m.project_id);
                   const dueDate = new Date(m.date);
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  const diffTime = dueDate.getTime() - today.getTime();
+                  const todayMidnight = new Date();
+                  todayMidnight.setHours(0, 0, 0, 0);
+                  const diffTime = dueDate.getTime() - todayMidnight.getTime();
                   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                   
                   let deadlineTagClass = 'tag-later';
@@ -602,6 +935,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           </div>
 
         </div>
+      )}
 
       </div>
 
