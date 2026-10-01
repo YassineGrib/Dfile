@@ -178,23 +178,22 @@ export const FriendsDebtsView: React.FC<FriendsDebtsViewProps> = ({
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button
+            id="btnAddFriendBtn"
             onClick={() => setIsAddFriendOpen(true)}
-            className="secondary-btn"
-            style={{ padding: '9px 14px', fontSize: '0.83rem', gap: '6px' }}
+            className="friends-header-action-btn secondary"
           >
-            <Users size={14} />
+            <Users size={15} />
             <span>{language === 'ar' ? 'صديق جديد' : 'New Friend'}</span>
           </button>
 
           <button 
             id="btnRecordFriendTx"
             onClick={() => handleOpenAddTxForFriend()}
-            className="submit-btn"
-            style={{ padding: '9px 16px', fontSize: '0.83rem', gap: '6px' }}
+            className="friends-header-action-btn primary"
           >
-            <Plus size={14} />
+            <Plus size={15} />
             <span>{language === 'ar' ? 'تسجيل دين / معاملة' : 'Record Transaction'}</span>
           </button>
         </div>

@@ -12,6 +12,60 @@
   animation: fadeIn 0.25s ease-out;
 }
 
+/* ── Friends Header Action Buttons (Same Shape, Distinct Colors) ── */
+.friends-header-action-btn {
+  height: 40px;
+  padding: 0 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+}
+
+.friends-header-action-btn.primary {
+  background-color: var(--btn-primary);
+  color: #FFFFFF;
+  border: 1px solid var(--btn-primary);
+  box-shadow: var(--shadow-xs);
+}
+
+.friends-header-action-btn.primary:hover {
+  background-color: var(--btn-primary-hover);
+  border-color: var(--btn-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.friends-header-action-btn.secondary {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  border: 1.5px solid var(--border-color);
+  box-shadow: var(--shadow-xs);
+}
+
+.friends-header-action-btn.secondary:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--text-placeholder, #A3A3A3);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Slide-over theme compatibility */
+.slide-over-container {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+}
+
+[dir="rtl"] .slide-over-container {
+  text-align: right;
+}
+
 /* ── Friends KPI Grid ── */
 .friends-kpi-grid {
   display: grid;

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLanguage } from './LanguageContext';
 import type { Friend } from '../types';
-import { User, Phone, FileText, X } from 'lucide-react';
+import { User, Phone, FileText } from 'lucide-react';
 
 interface AddFriendModalProps {
   isOpen: boolean;
@@ -46,40 +46,42 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
   };
 
   return (
-    <div className="modal-overlay animate-fade-in" onClick={onClose}>
+    <div className="slide-over-overlay" onClick={onClose}>
       <div 
-        className="modal-container animate-scale-up" 
-        style={{ maxWidth: '440px' }} 
+        className="slide-over-container animate-slide-in" 
         onClick={(e) => e.stopPropagation()}
+        style={{ direction: language === 'ar' ? 'rtl' : 'ltr', maxWidth: '460px' }}
       >
-        <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div className="kpi-card-icon-bubble purple" style={{ width: '32px', height: '32px' }}>
-              <User size={16} />
+        {/* Slide-over Header */}
+        <div className="slide-over-header">
+          <div className="client-badge-profile">
+            <div className="profile-large-avatar" style={{ backgroundColor: 'var(--accent-purple)' }}>
+              <User size={22} color="#FFFFFF" />
             </div>
             <div>
-              <h3 className="modal-title" style={{ fontSize: '1.05rem', fontWeight: 450 }}>
+              <h3 className="profile-name-title">
                 {language === 'ar' ? 'إضافة صديق جديد' : 'Add New Friend'}
               </h3>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+              <span className="profile-muted-date">
                 {language === 'ar' ? 'تسجيل صديق لربطه بالمعاملات والديون' : 'Add a contact to track mutual debts and favors'}
-              </p>
+              </span>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="modal-close-btn" title="Close">
-            <X size={16} />
+          <button onClick={onClose} className="close-slide-over-btn" aria-label="Close">
+            ✕
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="slide-over-content-body" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '18px' }}>
             {errorMsg && (
               <div style={{
-                padding: '8px 12px',
+                padding: '10px 14px',
                 backgroundColor: 'rgba(220, 38, 38, 0.08)',
                 color: '#DC2626',
                 borderRadius: 'var(--radius-md)',
-                fontSize: '0.8rem',
+                fontSize: '0.82rem',
                 border: '1px solid rgba(220, 38, 38, 0.2)'
               }}>
                 {errorMsg}
@@ -126,7 +128,7 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
               </label>
               <textarea
                 className="form-input"
-                rows={2}
+                rows={3}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder={language === 'ar' ? 'زميل عمل، صديق الطفولة، مطور شريك...' : 'Colleague, childhood friend, developer partner...'}
@@ -134,11 +136,12 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
             </div>
           </div>
 
-          <div className="modal-footer" style={{ marginTop: '16px' }}>
-            <button type="button" onClick={onClose} className="secondary-btn">
+          {/* Footer inside slide-over */}
+          <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: 'auto' }}>
+            <button type="button" onClick={onClose} className="btn-secondary">
               {language === 'ar' ? 'إلغاء' : 'Cancel'}
             </button>
-            <button type="submit" className="submit-btn primary-submit">
+            <button type="submit" className="submit-btn primary-submit" disabled={!name.trim()}>
               {language === 'ar' ? 'حفظ الصديق' : 'Save Friend'}
             </button>
           </div>

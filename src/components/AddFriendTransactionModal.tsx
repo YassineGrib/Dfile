@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from './LanguageContext';
 import type { Friend, FriendTransaction, FriendTransactionDirection, FriendTransactionType } from '../types';
 import { 
-  X, Plus, Banknote, Briefcase, Receipt, 
+  Plus, Banknote, Briefcase, Receipt, 
   ArrowDownLeft, ArrowUpRight, Calendar, User, FileText 
 } from 'lucide-react';
 
@@ -86,40 +86,45 @@ export const AddFriendTransactionModal: React.FC<AddFriendTransactionModalProps>
   };
 
   return (
-    <div className="modal-overlay animate-fade-in" onClick={onClose}>
+    <div className="slide-over-overlay" onClick={onClose}>
       <div 
-        className="modal-container animate-scale-up" 
-        style={{ maxWidth: '520px' }} 
+        className="slide-over-container animate-slide-in" 
         onClick={(e) => e.stopPropagation()}
+        style={{ direction: language === 'ar' ? 'rtl' : 'ltr', maxWidth: '480px' }}
       >
-        <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div className={`kpi-card-icon-bubble ${direction === 'lent' ? 'green' : 'orange'}`} style={{ width: '34px', height: '34px' }}>
-              {direction === 'lent' ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
+        {/* Slide-over Header */}
+        <div className="slide-over-header">
+          <div className="client-badge-profile">
+            <div 
+              className="profile-large-avatar" 
+              style={{ backgroundColor: direction === 'lent' ? 'var(--btn-primary)' : 'var(--accent-orange)' }}
+            >
+              {direction === 'lent' ? <ArrowDownLeft size={20} color="#FFFFFF" /> : <ArrowUpRight size={20} color="#FFFFFF" />}
             </div>
             <div>
-              <h3 className="modal-title" style={{ fontSize: '1.05rem', fontWeight: 450 }}>
-                {language === 'ar' ? 'تسجيل معاملة / دين جديد' : 'Record New Friend Transaction'}
+              <h3 className="profile-name-title">
+                {language === 'ar' ? 'تسجيل معاملة / دين جديد' : 'Record Transaction'}
               </h3>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+              <span className="profile-muted-date">
                 {language === 'ar' ? 'تسجيل دين نقدي أو خدمة متبادلة أو مصاريف مشتركة' : 'Track loan, favor, mutual service or shared cost'}
-              </p>
+              </span>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="modal-close-btn" title="Close">
-            <X size={16} />
+          <button onClick={onClose} className="close-slide-over-btn" aria-label="Close">
+            ✕
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="slide-over-content-body" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {errorMsg && (
               <div style={{
-                padding: '8px 12px',
+                padding: '10px 14px',
                 backgroundColor: 'rgba(220, 38, 38, 0.08)',
                 color: '#DC2626',
                 borderRadius: 'var(--radius-md)',
-                fontSize: '0.8rem',
+                fontSize: '0.82rem',
                 border: '1px solid rgba(220, 38, 38, 0.2)'
               }}>
                 {errorMsg}
@@ -357,14 +362,15 @@ export const AddFriendTransactionModal: React.FC<AddFriendTransactionModalProps>
 
           </div>
 
-          <div className="modal-footer" style={{ marginTop: '16px' }}>
-            <button type="button" onClick={onClose} className="secondary-btn">
+          {/* Footer inside slide-over */}
+          <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: 'auto' }}>
+            <button type="button" onClick={onClose} className="btn-secondary">
               {language === 'ar' ? 'إلغاء' : 'Cancel'}
             </button>
             <button 
               type="submit" 
               className="submit-btn primary-submit"
-              disabled={friends.length === 0}
+              disabled={friends.length === 0 || !amount || !description.trim()}
             >
               {language === 'ar' ? 'حفظ المعاملة' : 'Save Transaction'}
             </button>
