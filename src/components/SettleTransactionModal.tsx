@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from './LanguageContext';
 import type { FriendTransaction, FriendSettlement, FriendSettlementMethod } from '../types';
-import { X, CheckCircle2, Banknote, CreditCard, Building, Wrench, FileText, Calendar } from 'lucide-react';
+import { CheckCircle2, Banknote, CreditCard, Building, Wrench, FileText, Calendar } from 'lucide-react';
 
 interface SettleTransactionModalProps {
   isOpen: boolean;
@@ -101,33 +101,40 @@ export const SettleTransactionModal: React.FC<SettleTransactionModalProps> = ({
   };
 
   return (
-    <div className="modal-overlay animate-fade-in" onClick={onClose} style={{ zIndex: 300 }}>
+    <div className="slide-over-overlay" onClick={onClose} style={{ zIndex: 300 }}>
       <div 
-        className="modal-container animate-scale-up" 
-        style={{ maxWidth: '480px' }} 
+        className="slide-over-container animate-slide-in" 
         onClick={(e) => e.stopPropagation()}
+        style={{ direction: language === 'ar' ? 'rtl' : 'ltr', maxWidth: '480px' }}
       >
-        <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div className="kpi-card-icon-bubble green" style={{ width: '34px', height: '34px' }}>
-              <CheckCircle2 size={16} />
+        {/* Slide-over Header */}
+        <div className="slide-over-header">
+          <div className="client-badge-profile">
+            <div 
+              className="profile-large-avatar" 
+              style={{ backgroundColor: '#16A34A' }}
+            >
+              <CheckCircle2 size={22} color="#FFFFFF" />
             </div>
             <div>
-              <h3 className="modal-title" style={{ fontSize: '1.05rem', fontWeight: 450 }}>
+              <h3 className="profile-name-title">
                 {language === 'ar' ? 'تسجيل تسوية أو سداد' : 'Record Settlement / Payment'}
               </h3>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
-                {friendName ? `${language === 'ar' ? 'مع الصديق: ' : 'With: '} ${friendName}` : ''}
-              </p>
+              <span className="profile-muted-date">
+                {friendName 
+                  ? (language === 'ar' ? `مع الصديق: ${friendName}` : `With: ${friendName}`)
+                  : (language === 'ar' ? 'تسجيل سداد نقدي أو مقاصة خدمة' : 'Record cash settlement or service offset')}
+              </span>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="modal-close-btn" title="Close">
-            <X size={16} />
+          <button onClick={onClose} className="close-slide-over-btn" aria-label="Close">
+            ✕
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="slide-over-content-body" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* Transaction Overview Card */}
             <div style={{
               backgroundColor: 'var(--bg-hover)',
@@ -303,8 +310,9 @@ export const SettleTransactionModal: React.FC<SettleTransactionModalProps> = ({
 
           </div>
 
-          <div className="modal-footer" style={{ marginTop: '16px' }}>
-            <button type="button" onClick={onClose} className="secondary-btn">
+          {/* Footer inside slide-over */}
+          <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: 'auto' }}>
+            <button type="button" onClick={onClose} className="btn-secondary">
               {language === 'ar' ? 'إلغاء' : 'Cancel'}
             </button>
             <button type="submit" className="submit-btn primary-submit">
