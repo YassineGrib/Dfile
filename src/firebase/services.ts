@@ -8,7 +8,7 @@ import {
   onSnapshot 
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './config';
-import type { Client, Project, Expense, Invoice, Task, Payment, Activity, Milestone, Contract, WorkspacePreferences } from '../types';
+import type { Client, Project, Expense, Invoice, Task, Payment, Activity, Milestone, Contract, WorkspacePreferences, Friend, FriendTransaction, FriendSettlement } from '../types';
 
 /**
  * Generic Firestore collection fetcher
@@ -233,6 +233,24 @@ export const firestoreService = {
   // Support Tickets
   saveSupportTicket: async (ticket: { id: string; subject: string; message: string; user_email?: string; created_at: string; status: string }): Promise<void> => {
     return saveDocument('support_tickets', ticket);
-  }
+  },
+
+  // Friends
+  getFriends: () => fetchCollection<Friend>('friends'),
+  subscribeFriends: (cb: (items: Friend[]) => void) => subscribeCollection<Friend>('friends', cb),
+  saveFriend: (friend: Friend) => saveDocument('friends', friend),
+  deleteFriend: (id: string) => removeDocument('friends', id),
+
+  // Friend Transactions
+  getFriendTransactions: () => fetchCollection<FriendTransaction>('friend_transactions'),
+  subscribeFriendTransactions: (cb: (items: FriendTransaction[]) => void) => subscribeCollection<FriendTransaction>('friend_transactions', cb),
+  saveFriendTransaction: (tx: FriendTransaction) => saveDocument('friend_transactions', tx),
+  deleteFriendTransaction: (id: string) => removeDocument('friend_transactions', id),
+
+  // Friend Settlements
+  getFriendSettlements: () => fetchCollection<FriendSettlement>('friend_settlements'),
+  subscribeFriendSettlements: (cb: (items: FriendSettlement[]) => void) => subscribeCollection<FriendSettlement>('friend_settlements', cb),
+  saveFriendSettlement: (st: FriendSettlement) => saveDocument('friend_settlements', st),
+  deleteFriendSettlement: (id: string) => removeDocument('friend_settlements', id)
 };
 

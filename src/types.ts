@@ -166,3 +166,41 @@ export interface WorkspacePreferences {
   updated_at?: string;
 }
 
+export type FriendTransactionType = 'money' | 'service' | 'expense';
+export type FriendTransactionDirection = 'lent' | 'borrowed'; // lent = لي (أنا أطلب منه), borrowed = عليّ (هو يطلب مني)
+export type FriendTransactionStatus = 'pending' | 'partially_paid' | 'settled';
+export type FriendSettlementMethod = 'cash' | 'baridimob' | 'bank_transfer' | 'service_offset' | 'other';
+
+export interface Friend {
+  id: string;
+  name: string;
+  phone?: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface FriendTransaction {
+  id: string;
+  friend_id: string;
+  type: FriendTransactionType;
+  direction: FriendTransactionDirection;
+  amount: number;
+  paid_amount: number;
+  description: string;
+  due_date?: string;
+  status: FriendTransactionStatus;
+  date: string;
+  created_at: string;
+}
+
+export interface FriendSettlement {
+  id: string;
+  transaction_id: string;
+  friend_id: string;
+  amount: number;
+  payment_method: FriendSettlementMethod;
+  notes?: string;
+  date: string;
+  created_at: string;
+}
+
