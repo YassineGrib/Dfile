@@ -16,11 +16,12 @@ import { InvoicesView } from './components/InvoicesView';
 import { PaymentsView } from './components/PaymentsView';
 import { SettingsView } from './components/SettingsView';
 import { AddPaymentModal } from './components/AddPaymentModal';
+import { FriendsDebtsView } from './components/FriendsDebtsView';
 import { authService } from './firebase/auth';
 import { firestoreService } from './firebase/services';
 import { isFirebaseConfigured } from './firebase/config';
 import { useTheme } from './core';
-import type { Client, Project, Payment, Expense, Activity, Task, Invoice, Milestone, Contract, FreelancerProfile } from './types';
+import type { Client, Project, Payment, Expense, Activity, Task, Invoice, Milestone, Contract, FreelancerProfile, Friend, FriendTransaction, FriendSettlement } from './types';
 
 const defaultProfile = {
   name: 'Sadek Rahman',
@@ -82,6 +83,43 @@ const AuthAppContent: React.FC = () => {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
 
+  // Friends & Transactions State with instant localStorage retrieval
+  const [friends, setFriends] = useState<Friend[]>(() => {
+    const saved = localStorage.getItem('indflow_friends');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.warn('Could not parse cached friends:', e);
+      }
+    }
+    return [];
+  });
+
+  const [friendTransactions, setFriendTransactions] = useState<FriendTransaction[]>(() => {
+    const saved = localStorage.getItem('indflow_friend_transactions');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.warn('Could not parse cached friend transactions:', e);
+      }
+    }
+    return [];
+  });
+
+  const [friendSettlements, setFriendSettlements] = useState<FriendSettlement[]>(() => {
+    const saved = localStorage.getItem('indflow_friend_settlements');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.warn('Could not parse cached friend settlements:', e);
+      }
+    }
+    return [];
+  });
+
   // Profile & Contract Template states with instant localStorage retrieval
   const [freelancerProfile, setFreelancerProfile] = useState<FreelancerProfile>(() => {
     const saved = localStorage.getItem('fintask_freelancer_profile');
@@ -142,6 +180,18 @@ const AuthAppContent: React.FC = () => {
       const unsubActivities = firestoreService.subscribeActivities((items) => setActivities(items));
       const unsubMilestones = firestoreService.subscribeMilestones((items) => setMilestones(items));
       const unsubContracts = firestoreService.subscribeContracts((items) => setContracts(items));
+      const unsubFriends = firestoreService.subscribeFriends((items) => {
+        setFriends(items);
+        localStorage.setItem('indflow_friends', JSON.stringify(items));
+      });
+      const unsubFriendTransactions = firestoreService.subscribeFriendTransactions((items) => {
+        setFriendTransactions(items);
+        localStorage.setItem('indflow_friend_transactions', JSON.stringify(items));
+      });
+      const unsubFriendSettlements = firestoreService.subscribeFriendSettlements((items) => {
+        setFriendSettlements(items);
+        localStorage.setItem('indflow_friend_settlements', JSON.stringify(items));
+      });
       const unsubSettings = firestoreService.subscribeWorkspacePreferences((prefs) => {
         if (prefs) {
           if (prefs.profile) {
@@ -177,6 +227,9 @@ const AuthAppContent: React.FC = () => {
         unsubActivities();
         unsubMilestones();
         unsubContracts();
+        unsubFriends();
+        unsubFriendTransactions();
+        unsubFriendSettlements();
         unsubSettings();
       };
     }
@@ -523,6 +576,98 @@ const AuthAppContent: React.FC = () => {
     );
   };
 
+  // Friend Debt Handlers
+  const handleAddFriend = (newFriend: Friend) => {
+    const updated = [newFriend, ...friends];
+    setFriends(updated);
+    localStorage.setItem('indflow_friends', JSON.stringify(updated));
+    firestoreService.saveFriend(newFriend);
+    logActivity(
+      `Friend '${newFriend.name}' added to ledger`,
+      `تمت إضافة الصديق '${newFriend.name}' إلى السجل`,
+      'client'
+    );
+  };
+
+  const handleDeleteFriend = (friendId: string) => {
+    const friend = friends.find(f => f.id === friendId);
+    const updatedFriends = friends.filter(f => f.id !== friendId);
+    setFriends(updatedFriends);
+    localStorage.setItem('indflow_friends', JSON.stringify(updatedFriends));
+    firestoreService.deleteFriend(friendId);
+
+    const txsToRemove = friendTransactions.filter(t => t.friend_id === friendId);
+    for (const t of txsToRemove) {
+      firestoreService.deleteFriendTransaction(t.id);
+    }
+    const updatedTxs = friendTransactions.filter(t => t.friend_id !== friendId);
+    setFriendTransactions(updatedTxs);
+    localStorage.setItem('indflow_friend_transactions', JSON.stringify(updatedTxs));
+
+    const updatedSts = friendSettlements.filter(s => s.friend_id !== friendId);
+    setFriendSettlements(updatedSts);
+    localStorage.setItem('indflow_friend_settlements', JSON.stringify(updatedSts));
+
+    if (friend) {
+      logActivity(
+        `Friend '${friend.name}' removed from ledger`,
+        `تم حذف الصديق '${friend.name}' وسجلاته`,
+        'client'
+      );
+    }
+  };
+
+  const handleAddFriendTransaction = (newTx: FriendTransaction) => {
+    const updated = [newTx, ...friendTransactions];
+    setFriendTransactions(updated);
+    localStorage.setItem('indflow_friend_transactions', JSON.stringify(updated));
+    firestoreService.saveFriendTransaction(newTx);
+    const friend = friends.find(f => f.id === newTx.friend_id);
+    logActivity(
+      `Transaction of ${newTx.amount.toLocaleString()} DZ (${newTx.direction === 'lent' ? 'Lent' : 'Borrowed'}) recorded with ${friend?.name || 'Friend'}`,
+      `تم تسجيل معاملة بمبلغ ${newTx.amount.toLocaleString()} دج (${newTx.direction === 'lent' ? 'دين لك' : 'دين عليك'}) مع ${friend?.name || 'الصديق'}`,
+      'payment'
+    );
+  };
+
+  const handleDeleteFriendTransaction = (txId: string) => {
+    const updatedTxs = friendTransactions.filter(t => t.id !== txId);
+    setFriendTransactions(updatedTxs);
+    localStorage.setItem('indflow_friend_transactions', JSON.stringify(updatedTxs));
+    firestoreService.deleteFriendTransaction(txId);
+
+    const stsToRemove = friendSettlements.filter(s => s.transaction_id === txId);
+    for (const s of stsToRemove) {
+      firestoreService.deleteFriendSettlement(s.id);
+    }
+    const updatedSts = friendSettlements.filter(s => s.transaction_id !== txId);
+    setFriendSettlements(updatedSts);
+    localStorage.setItem('indflow_friend_settlements', JSON.stringify(updatedSts));
+  };
+
+  const handleSettleFriendTransaction = (newSettlement: FriendSettlement, updatedTx: FriendTransaction) => {
+    const updatedSts = [newSettlement, ...friendSettlements];
+    setFriendSettlements(updatedSts);
+    localStorage.setItem('indflow_friend_settlements', JSON.stringify(updatedSts));
+    firestoreService.saveFriendSettlement(newSettlement);
+
+    const updatedTxs = friendTransactions.map(t => t.id === updatedTx.id ? updatedTx : t);
+    setFriendTransactions(updatedTxs);
+    localStorage.setItem('indflow_friend_transactions', JSON.stringify(updatedTxs));
+    firestoreService.saveFriendTransaction(updatedTx);
+
+    const friend = friends.find(f => f.id === updatedTx.friend_id);
+    logActivity(
+      `Settlement of ${newSettlement.amount.toLocaleString()} DZ recorded with ${friend?.name || 'Friend'}`,
+      `تم تسجيل تسوية بمبلغ ${newSettlement.amount.toLocaleString()} دج مع ${friend?.name || 'الصديق'}`,
+      'payment'
+    );
+  };
+
+  const activeFriendDebtsCount = friendTransactions.filter(
+    t => t.status !== 'settled' && Math.max(0, t.amount - (t.paid_amount || 0)) > 0
+  ).length;
+
   return (
     <>
       {!isAuthenticated ? (
@@ -548,6 +693,7 @@ const AuthAppContent: React.FC = () => {
             clients={clients}
             payments={payments}
             userProfile={freelancerProfile}
+            activeFriendDebtsCount={activeFriendDebtsCount}
           />
 
           {/* Main Workspace Frame */}
@@ -663,6 +809,19 @@ const AuthAppContent: React.FC = () => {
                 payments={payments}
                 onAddInvoice={handleAddInvoice}
                 onDeleteInvoice={handleDeleteInvoice}
+              />
+            )}
+
+            {activeTab === 'friends-debts' && (
+              <FriendsDebtsView
+                friends={friends}
+                transactions={friendTransactions}
+                settlements={friendSettlements}
+                onAddFriend={handleAddFriend}
+                onDeleteFriend={handleDeleteFriend}
+                onAddTransaction={handleAddFriendTransaction}
+                onDeleteTransaction={handleDeleteFriendTransaction}
+                onSettleTransaction={handleSettleFriendTransaction}
               />
             )}
 

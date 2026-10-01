@@ -5,7 +5,7 @@ import type { Project, Client, Payment, FreelancerProfile } from '../types';
 import { 
   LayoutDashboard, Users, Calendar, 
   Settings, Plus, ChevronDown, ChevronRight,
-  ClipboardList, Landmark, LayoutGrid, Banknote, Receipt
+  ClipboardList, Landmark, LayoutGrid, Banknote, Receipt, Handshake
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -20,6 +20,7 @@ interface SidebarProps {
   clients: Client[];
   payments?: Payment[];
   userProfile?: FreelancerProfile;
+  activeFriendDebtsCount?: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -34,6 +35,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   clients,
   payments = [],
   userProfile,
+  activeFriendDebtsCount = 0,
 }) => {
   const { language } = useLanguage();
 
@@ -295,6 +297,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <Plus size={12} className="sub-action-icon" />
             <span>{language === 'ar' ? 'تسجيل مصروف' : 'Add Expense'}</span>
           </div>
+
+          {/* Friends Debts & Exchanges Ledger */}
+          <button
+            id="sidebarFriendsDebtsBtn"
+            onClick={() => onTabChange('friends-debts')}
+            className={`nav-btn ${activeTab === 'friends-debts' ? 'active' : ''}`}
+          >
+            <span className="nav-icon">
+              <Handshake size={16} />
+            </span>
+            <span className="nav-label">
+              {language === 'ar' ? 'ديون ومعاملات الأصدقاء' : 'Friends Ledger'}
+            </span>
+            {activeFriendDebtsCount !== undefined && activeFriendDebtsCount > 0 && (
+              <span className="nav-badge-purple" style={{ background: '#FFF3E0', color: '#E65100' }}>
+                {activeFriendDebtsCount}
+              </span>
+            )}
+          </button>
         </nav>
       </div>
 
