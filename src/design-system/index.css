@@ -21,4 +21,5 @@
 @import './12-contracts.css';   /* Contract Editor & Print         */
 @import './13-animations.css';  /* @keyframes & Utility Classes    */
 @import './14-payments.css';    /* Payments Ledger, Inflow & Receipts */
+@import './15-friends-debts.css'; /* Friends Debts & Exchanges Ledger */
 

@@ -1,0 +1,476 @@
+/* =============================================================
+ * 15-friends-debts.css — Friends Ledger, Peer-to-Peer & Exchanges
+ * IndFlow Design System
+ * ============================================================= */
+
+/* ── Container Layout ── */
+.friends-view-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 60px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+/* ── Friends KPI Grid ── */
+.friends-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+@media (max-width: 1100px) {
+  .friends-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .friends-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Dynamic KPI Tint for Net Balance */
+.payments-kpi-card.net-positive::before {
+  background: var(--btn-primary);
+}
+.payments-kpi-card.net-negative::before {
+  background: #E53935;
+}
+.payments-kpi-card.net-neutral::before {
+  background: var(--border-color);
+}
+
+/* ── Toolbar & View Switcher ── */
+.friends-toolbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.view-mode-pill-group {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--bg-hover);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 2px;
+}
+
+.view-mode-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--radius-md) - 2px);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.view-mode-pill-btn:hover {
+  color: var(--text-primary);
+}
+
+.view-mode-pill-btn.active {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 450;
+  box-shadow: var(--shadow-xs);
+}
+
+.friends-filters-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.friends-select-filter {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-primary);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  outline: none;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.friends-select-filter:focus {
+  border-color: var(--btn-primary);
+}
+
+/* ── Mode 1: Friends Cards Grid ── */
+.friends-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.friend-summary-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+  box-shadow: var(--shadow-xs);
+  transition: var(--transition-smooth);
+}
+
+.friend-summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+.friend-card-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.friend-info-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.friend-text-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.friend-name-heading {
+  font-size: 0.95rem;
+  font-weight: 450;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.friend-contact-subtext {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.friend-card-balance-box {
+  background-color: var(--bg-hover);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.balance-box-label {
+  font-size: 0.76rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.balance-box-amount {
+  font-size: 1.05rem;
+  font-weight: 450;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.balance-box-amount.lent {
+  color: #16A34A;
+}
+
+.balance-box-amount.borrowed {
+  color: #DC2626;
+}
+
+.balance-box-amount.settled {
+  color: var(--text-muted);
+}
+
+.friend-card-stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  padding-top: 2px;
+}
+
+.friend-card-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.friend-card-btn-statement {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  font-weight: 450;
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.friend-card-btn-statement:hover {
+  background-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.friend-card-btn-add-tx {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.friend-card-btn-add-tx:hover {
+  background-color: var(--btn-primary);
+  color: #FFFFFF;
+  border-color: var(--btn-primary);
+}
+
+/* ── Direction & Type Badges ── */
+.badge-direction {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  font-size: 0.74rem;
+  font-weight: 450;
+}
+
+.badge-direction.lent {
+  background-color: rgba(22, 163, 74, 0.1);
+  color: #16A34A;
+  border: 1px solid rgba(22, 163, 74, 0.2);
+}
+
+.badge-direction.borrowed {
+  background-color: rgba(220, 38, 38, 0.1);
+  color: #DC2626;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.badge-type-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  font-weight: 400;
+  background-color: var(--bg-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.badge-type-tag.money {
+  background-color: rgba(37, 99, 235, 0.08);
+  color: #2563EB;
+  border-color: rgba(37, 99, 235, 0.15);
+}
+
+.badge-type-tag.service {
+  background-color: rgba(147, 51, 234, 0.08);
+  color: #9333EA;
+  border-color: rgba(147, 51, 234, 0.15);
+}
+
+.badge-type-tag.expense {
+  background-color: rgba(217, 119, 6, 0.08);
+  color: #D97706;
+  border-color: rgba(217, 119, 6, 0.15);
+}
+
+.badge-status-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 0.72rem;
+  font-weight: 450;
+}
+
+.badge-status-tag.pending {
+  background-color: rgba(234, 88, 12, 0.1);
+  color: #EA580C;
+  border: 1px solid rgba(234, 88, 12, 0.2);
+}
+
+.badge-status-tag.partially_paid {
+  background-color: rgba(13, 148, 136, 0.1);
+  color: #0D9488;
+  border: 1px solid rgba(13, 148, 136, 0.2);
+}
+
+.badge-status-tag.settled {
+  background-color: rgba(107, 114, 128, 0.1);
+  color: var(--text-muted);
+  border: 1px solid rgba(107, 114, 128, 0.2);
+}
+
+/* ── Mode 2: Transactions Table ── */
+.friends-table-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.friends-table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.friends-transactions-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.83rem;
+}
+
+[dir="rtl"] .friends-transactions-table {
+  text-align: right;
+}
+
+.friends-transactions-table th {
+  padding: 12px 16px;
+  font-size: 0.76rem;
+  font-weight: 450;
+  color: var(--text-muted);
+  background-color: var(--bg-hover);
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.friends-transactions-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+  color: var(--text-primary);
+}
+
+.friends-transactions-table tr:hover td {
+  background-color: var(--bg-hover);
+}
+
+.friends-transactions-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* ── Modal & Statement Styles ── */
+.statement-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  background-color: var(--bg-hover);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border-color);
+}
+
+.statement-friend-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.statement-balance-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+[dir="rtl"] .statement-balance-banner {
+  align-items: flex-start;
+}
+
+.statement-settlement-log-box {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.method-radio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.method-radio-card {
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.method-radio-card:hover {
+  background-color: var(--bg-hover);
+  border-color: rgba(0, 0, 0, 0.2);
+}
+
+.method-radio-card.selected {
+  border-color: var(--btn-primary);
+  background-color: rgba(14, 79, 47, 0.05);
+  color: var(--btn-primary);
+  font-weight: 450;
+}
