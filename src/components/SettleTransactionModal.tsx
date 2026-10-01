@@ -101,7 +101,7 @@ export const SettleTransactionModal: React.FC<SettleTransactionModalProps> = ({
   };
 
   return (
-    <div className="modal-overlay animate-fade-in" onClick={onClose}>
+    <div className="modal-overlay animate-fade-in" onClick={onClose} style={{ zIndex: 300 }}>
       <div 
         className="modal-container animate-scale-up" 
         style={{ maxWidth: '480px' }} 

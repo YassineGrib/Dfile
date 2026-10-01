@@ -3,7 +3,7 @@ import { useLanguage } from './LanguageContext';
 import { UserAvatar } from './UserAvatar';
 import type { Friend, FriendTransaction, FriendSettlement } from '../types';
 import { 
-  X, Plus, CheckCircle2, Trash2, Phone, Calendar, 
+  Plus, CheckCircle2, Trash2, Phone, Calendar, 
   ChevronDown, ChevronUp, ArrowDownLeft, ArrowUpRight,
   ExternalLink, CreditCard, Banknote, Wrench, Building
 } from 'lucide-react';
@@ -124,36 +124,42 @@ export const FriendLedgerModal: React.FC<FriendLedgerModalProps> = ({
   };
 
   return (
-    <div className="modal-overlay animate-fade-in" onClick={onClose}>
+    <div className="slide-over-overlay" onClick={onClose} style={{ zIndex: 250 }}>
       <div 
-        className="modal-container animate-scale-up" 
-        style={{ maxWidth: '780px', maxHeight: '90vh', overflowY: 'auto' }} 
+        className="slide-over-container animate-slide-in" 
         onClick={(e) => e.stopPropagation()}
+        style={{ direction: language === 'ar' ? 'rtl' : 'ltr', maxWidth: '640px' }}
       >
-        {/* Modal Header */}
-        <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <h3 className="modal-title" style={{ fontSize: '1.1rem', fontWeight: 450 }}>
-              {language === 'ar' ? 'كشف الحساب وسجل المعاملات' : 'Account Statement & Ledger'}
-            </h3>
+        {/* Slide-over Header */}
+        <div className="slide-over-header">
+          <div className="client-badge-profile">
+            <UserAvatar name={friend.name} size={46} animate="hover" />
+            <div>
+              <h3 className="profile-name-title">
+                {friend.name}
+              </h3>
+              <span className="profile-muted-date">
+                {language === 'ar' ? 'كشف الحساب وسجل المعاملات والديون' : 'Account Statement & Ledger'}
+              </span>
+            </div>
           </div>
-          <button type="button" onClick={onClose} className="modal-close-btn" title="Close">
-            <X size={16} />
+          <button onClick={onClose} className="close-slide-over-btn" aria-label="Close">
+            ✕
           </button>
         </div>
 
-        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* Slide-over Body */}
+        <div className="slide-over-content-body" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
           {/* Friend Profile & Balance Summary Banner */}
-          <div className="statement-summary-header">
+          <div className="statement-summary-header" style={{ margin: 0 }}>
             <div className="statement-friend-meta">
-              <UserAvatar name={friend.name} size={46} animate="hover" />
               <div>
                 <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 450, color: 'var(--text-primary)' }}>
                   {friend.name}
                 </h4>
                 {friend.phone && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
                     <a 
                       href={`tel:${friend.phone}`} 
                       className="friend-contact-subtext"
@@ -166,7 +172,7 @@ export const FriendLedgerModal: React.FC<FriendLedgerModalProps> = ({
                       href={`https://wa.me/${friend.phone.replace(/[^0-9]/g, '')}`}
                       target="_blank"
                       rel="noreferrer"
-                      style={{ fontSize: '0.72rem', color: '#16A34A', display: 'inline-flex', alignItems: 'center', gap: '2px', textDecoration: 'none' }}
+                      style={{ fontSize: '0.74rem', color: '#16A34A', display: 'inline-flex', alignItems: 'center', gap: '3px', textDecoration: 'none', fontWeight: 450 }}
                       title="WhatsApp"
                     >
                       <span>WhatsApp</span>
@@ -175,7 +181,7 @@ export const FriendLedgerModal: React.FC<FriendLedgerModalProps> = ({
                   </div>
                 )}
                 {friend.notes && (
-                  <p style={{ margin: '4px 0 0', fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                  <p style={{ margin: '6px 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                     {friend.notes}
                   </p>
                 )}
@@ -189,7 +195,7 @@ export const FriendLedgerModal: React.FC<FriendLedgerModalProps> = ({
               </span>
               <div 
                 className={`balance-box-amount ${summary.netBalance > 0 ? 'lent' : summary.netBalance < 0 ? 'borrowed' : 'settled'}`}
-                style={{ fontSize: '1.25rem' }}
+                style={{ fontSize: '1.3rem' }}
               >
                 {summary.netBalance > 0 ? (
                   <span>+{summary.netBalance.toLocaleString()} DZ</span>
@@ -210,30 +216,30 @@ export const FriendLedgerModal: React.FC<FriendLedgerModalProps> = ({
           </div>
 
           {/* KPI Mini Strip */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '10px' }}>
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{language === 'ar' ? 'ديون لك' : 'Owed to You'}</div>
               <div style={{ fontSize: '0.92rem', fontWeight: 450, color: '#16A34A', marginTop: '2px' }}>
-                {summary.totalLentUnpaid.toLocaleString()} DZ
+                +{summary.totalLentUnpaid.toLocaleString()} DZ
               </div>
             </div>
 
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{language === 'ar' ? 'ديون عليك' : 'You Owe'}</div>
               <div style={{ fontSize: '0.92rem', fontWeight: 450, color: '#DC2626', marginTop: '2px' }}>
-                {summary.totalBorrowedUnpaid.toLocaleString()} DZ
+                -{summary.totalBorrowedUnpaid.toLocaleString()} DZ
               </div>
             </div>
 
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{language === 'ar' ? 'معاملات نشطة' : 'Active'}</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{language === 'ar' ? 'نشطة' : 'Active'}</div>
               <div style={{ fontSize: '0.92rem', fontWeight: 450, color: '#EA580C', marginTop: '2px' }}>
                 {summary.pendingCount}
               </div>
             </div>
 
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{language === 'ar' ? 'معاملات مسددة' : 'Settled'}</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{language === 'ar' ? 'مسددة' : 'Settled'}</div>
               <div style={{ fontSize: '0.92rem', fontWeight: 450, color: 'var(--text-muted)', marginTop: '2px' }}>
                 {summary.settledCount}
               </div>
@@ -241,12 +247,12 @@ export const FriendLedgerModal: React.FC<FriendLedgerModalProps> = ({
           </div>
 
           {/* Quick Actions Row */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <button
               type="button"
               onClick={() => onOpenAddTransaction(friend.id)}
-              className="submit-btn"
-              style={{ padding: '8px 14px', fontSize: '0.82rem', gap: '6px' }}
+              className="friends-header-action-btn primary"
+              style={{ height: '36px', fontSize: '0.8rem', padding: '0 14px' }}
             >
               <Plus size={14} />
               <span>{language === 'ar' ? 'تسجيل دين أو خدمة جديدة' : 'Add Transaction'}</span>
@@ -277,15 +283,15 @@ export const FriendLedgerModal: React.FC<FriendLedgerModalProps> = ({
           </div>
 
           {/* Transactions List */}
-          <div style={{ marginTop: '8px' }}>
-            <h5 style={{ fontSize: '0.85rem', fontWeight: 450, color: 'var(--text-primary)', marginBottom: '8px' }}>
+          <div>
+            <h5 style={{ fontSize: '0.86rem', fontWeight: 450, color: 'var(--text-primary)', margin: '0 0 10px' }}>
               {language === 'ar' ? 'سجل العمليات والديون المتبادلة' : 'Transaction History'}
             </h5>
 
             {friendTxs.length === 0 ? (
               <div style={{
                 textAlign: 'center',
-                padding: '30px 16px',
+                padding: '36px 16px',
                 background: 'var(--bg-hover)',
                 borderRadius: 'var(--radius-md)',
                 color: 'var(--text-muted)',
@@ -445,8 +451,9 @@ export const FriendLedgerModal: React.FC<FriendLedgerModalProps> = ({
 
         </div>
 
-        <div className="modal-footer" style={{ marginTop: '16px' }}>
-          <button type="button" onClick={onClose} className="secondary-btn">
+        {/* Slide-over Footer */}
+        <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: 'auto' }}>
+          <button type="button" onClick={onClose} className="btn-secondary" style={{ minWidth: '100px' }}>
             {language === 'ar' ? 'إغلاق' : 'Close'}
           </button>
         </div>
