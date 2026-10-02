@@ -27,3 +27,5 @@ dist-ssr
 
 # Root test screenshots
 /*.png
+# Electron build output
+dist-electron/
