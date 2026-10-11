@@ -74,7 +74,17 @@
   background-color: var(--bg-sidebar);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: 20px 24px;
+  padding: 18px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.actions-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .actions-title-header {
@@ -83,10 +93,57 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
-  margin-bottom: 12px;
 }
 
-.actions-button-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+html[dir="rtl"] .actions-title-header { text-transform: none; letter-spacing: 0; }
+
+.actions-utility-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.actions-utility-btn:focus-visible {
+  outline: 2px solid var(--border-color-focus);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .actions-utility-btn:hover { color: var(--text-main); background-color: var(--bg-card); }
+}
+
+.actions-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.actions-group-label {
+  flex: 0 0 64px;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.actions-button-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* Narrow screens: stack the group label and lay buttons out in an even two-column grid */
+@media (max-width: 640px) {
+  .quick-actions-bar { padding: 16px; }
+  .actions-group { flex-direction: column; align-items: stretch; gap: 8px; }
+  .actions-group-label { flex-basis: auto; }
+  .actions-button-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .actions-button-grid .action-pill-btn { min-width: 0; }
+  .actions-button-grid .pill-label-text { overflow: hidden; text-overflow: ellipsis; }
+  .actions-button-grid .pill-goto-arrow { margin-inline-start: auto; flex-shrink: 0; }
+}
 
 /* ── Charts Layout ── */
 .charts-double-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }

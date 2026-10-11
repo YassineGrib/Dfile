@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useLanguage } from './LanguageContext';
+import { useTheme } from '../core';
 import type { Client, Project, Payment, Expense, Activity } from '../types';
 import {
   Chart as ChartJS,
@@ -17,7 +18,23 @@ import {
   Filler,
 } from 'chart.js';
 import { Chart, Doughnut } from 'react-chartjs-2';
-import { TrendingUp, ArrowUpRight, ArrowDownRight, Wallet, Plus } from 'lucide-react';
+import {
+  TrendingUp,
+  ArrowUpRight,
+  ArrowDownRight,
+  Wallet,
+  Plus,
+  FileText,
+  FilePenLine,
+  CalendarPlus,
+  HandCoins,
+  Download,
+  FolderPlus,
+  UserPlus,
+  Banknote,
+  Receipt,
+  type LucideIcon,
+} from 'lucide-react';
 
 ChartJS.register(
   CategoryScale,
@@ -44,6 +61,8 @@ interface DashboardViewProps {
   onOpenAddClient: () => void;
   onOpenAddExpense: () => void;
   onOpenAddPayment?: () => void;
+  onNavigate?: (tab: string) => void;
+  onExportBackup?: () => void;
   freelancerName?: string;
 }
 
@@ -57,9 +76,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenAddClient,
   onOpenAddExpense,
   onOpenAddPayment,
+  onNavigate,
+  onExportBackup,
   freelancerName,
 }) => {
   const { language } = useLanguage();
+  const { theme, resolvedMode } = useTheme();
   const [timeRange, setTimeRange] = useState<'6m' | 'year'>('6m');
 
   // 1. Calculate Metrics
@@ -271,42 +293,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     },
   };
 
-  // Projects ratio statuses
-  const deliveredCount = projects.filter((p) => p.status === 'Delivered').length;
-  const completedCount = projects.filter((p) => p.status === 'Completed').length;
-  const inProgressCount = projects.filter((p) => p.status === 'In Progress').length;
-  const waitingCount = projects.filter((p) => p.status === 'Waiting Client').length;
-  const plannedCount = projects.filter((p) => p.status === 'Planned').length;
+  // Projects ratio statuses — colors come from the app theme palette.
+  // Done states share the forest brand hue (solid = delivered, tint = completed);
+  // forest is too dark to read on the dark card, so dark mode lifts it.
+  const isDark = resolvedMode === 'dark';
+  const forest = isDark ? '#4ADE80' : theme.colors.brand.forest;
+  const statusSegments = [
+    { key: 'Delivered', label: language === 'ar' ? 'تم التسليم' : 'Delivered', color: forest },
+    { key: 'Completed', label: language === 'ar' ? 'مكتمل' : 'Completed', color: `${forest}73` },
+    { key: 'In Progress', label: language === 'ar' ? 'قيد التنفيذ' : 'In Progress', color: theme.colors.brand.purple },
+    { key: 'Waiting Client', label: language === 'ar' ? 'بانتظار العميل' : 'Waiting Client', color: theme.colors.brand.orange },
+    { key: 'Planned', label: language === 'ar' ? 'مخطط له' : 'Planned', color: theme.colors.text.placeholder },
+  ].map((s) => ({ ...s, count: projects.filter((p) => p.status === s.key).length }));
 
   const totalProjects = projects.length;
   const doughnutData = {
     labels:
       totalProjects > 0
-        ? [
-            language === 'ar' ? 'تم التسليم' : 'Delivered',
-            language === 'ar' ? 'مكتمل' : 'Completed',
-            language === 'ar' ? 'قيد التنفيذ' : 'In Progress',
-            language === 'ar' ? 'بانتظار العميل' : 'Waiting Client',
-            language === 'ar' ? 'مخطط له' : 'Planned',
-          ]
+        ? statusSegments.map((s) => s.label)
         : [language === 'ar' ? 'لا توجد مشاريع بعد' : 'No Projects Yet'],
     datasets: [
       {
-        data:
-          totalProjects > 0
-            ? [deliveredCount, completedCount, inProgressCount, waitingCount, plannedCount]
-            : [1],
+        data: totalProjects > 0 ? statusSegments.map((s) => s.count) : [1],
         backgroundColor:
-          totalProjects > 0
-            ? [
-                '#0E4F2F', // Delivered - Emerald
-                '#22C55E', // Completed - Bright Green
-                '#E77C40', // In Progress - Orange
-                '#8C7CF0', // Waiting Client - Purple
-                '#E6E5E0', // Planned - Warm Gray
-              ]
-            : ['#E6E5E0'],
-        borderWidth: 0,
+          totalProjects > 0 ? statusSegments.map((s) => s.color) : [theme.colors.border.default],
+        // Thin gaps in the card color keep neighbouring segments (e.g. the two greens) distinct
+        borderColor: theme.colors.bg.card,
+        borderWidth: totalProjects > 0 ? 2 : 0,
         hoverOffset: totalProjects > 0 ? 3 : 0,
       },
     ],
@@ -332,6 +345,45 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       },
     },
   };
+
+  // Quick actions: "create" opens a form in place, "go to" switches to the page that owns the flow
+  type QuickAction = {
+    id: string;
+    icon: LucideIcon;
+    tone: 'green' | 'purple' | 'orange' | 'blue';
+    label: string;
+    hint?: string;
+    onClick: () => void;
+  };
+  const isAr = language === 'ar';
+
+  const createActions: QuickAction[] = [
+    { id: 'qaAddProjectBtn', icon: FolderPlus, tone: 'green', label: isAr ? 'إضافة مشروع' : 'Add Project', onClick: onOpenAddProject },
+    { id: 'qaAddClientBtn', icon: UserPlus, tone: 'purple', label: isAr ? 'إضافة عميل' : 'Add Client', onClick: onOpenAddClient },
+    ...(onOpenAddPayment
+      ? [{ id: 'qaAddPaymentBtn', icon: Banknote, tone: 'blue' as const, label: isAr ? 'تسجيل دفعة' : 'Add Payment', onClick: onOpenAddPayment }]
+      : []),
+    { id: 'qaAddExpenseBtn', icon: Receipt, tone: 'orange', label: isAr ? 'تسجيل مصاريف' : 'Add Expense', onClick: onOpenAddExpense },
+  ];
+
+  const goToActions: QuickAction[] = onNavigate
+    ? [
+        { id: 'qaNewInvoiceBtn', icon: FileText, tone: 'blue', label: isAr ? 'إنشاء فاتورة' : 'New Invoice', hint: isAr ? 'يفتح صفحة الفواتير' : 'Opens the Invoices page', onClick: () => onNavigate('invoices') },
+        { id: 'qaNewContractBtn', icon: FilePenLine, tone: 'purple', label: isAr ? 'إنشاء عقد' : 'New Contract', hint: isAr ? 'يفتح صفحة العقود' : 'Opens the Contracts page', onClick: () => onNavigate('contracts') },
+        { id: 'qaAddMilestoneBtn', icon: CalendarPlus, tone: 'orange', label: isAr ? 'إضافة موعد' : 'Add Milestone', hint: isAr ? 'يفتح التقويم' : 'Opens the Calendar', onClick: () => onNavigate('calendar') },
+        { id: 'qaFriendDebtBtn', icon: HandCoins, tone: 'green', label: isAr ? 'تسجيل دين' : 'Record Debt', hint: isAr ? 'يفتح صفحة الأصدقاء والديون' : 'Opens Friends & Debts', onClick: () => onNavigate('friends-debts') },
+      ]
+    : [];
+
+  const renderQuickAction = ({ id, icon: Icon, tone, label, hint, onClick }: QuickAction) => (
+    <button key={id} id={id} type="button" onClick={onClick} className="action-pill-btn" title={hint}>
+      <span className={`pill-icon-circle tone-${tone}`} aria-hidden="true">
+        <Icon size={14} strokeWidth={2} />
+      </span>
+      <span className="pill-label-text">{label}</span>
+      {hint && <ArrowUpRight size={13} className="pill-goto-arrow" aria-hidden="true" />}
+    </button>
+  );
 
   return (
     <div className="dashboard-content-area">
@@ -407,46 +459,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </section>
 
       {/* Quick Actions Panel */}
-      <section className="quick-actions-bar">
-        <h4 className="actions-title-header">
-          {language === 'ar' ? 'إجراءات سريعة' : 'Quick Actions'}
-        </h4>
-        <div className="actions-button-grid">
-          <button id="qaAddProjectBtn" onClick={onOpenAddProject} className="action-pill-btn">
-            <span className="pill-icon-circle">+</span>
-            <span className="pill-label-text">
-              {language === 'ar' ? 'إضافة مشروع' : 'Add Project'}
-            </span>
-          </button>
-
-          <button id="qaAddClientBtn" onClick={onOpenAddClient} className="action-pill-btn">
-            <span className="pill-icon-circle accent-purple-icon">+</span>
-            <span className="pill-label-text">
-              {language === 'ar' ? 'إضافة عميل' : 'Add Client'}
-            </span>
-          </button>
-
-          {onOpenAddPayment && (
-            <button id="qaAddPaymentBtn" onClick={onOpenAddPayment} className="action-pill-btn">
-              <span
-                className="pill-icon-circle"
-                style={{ backgroundColor: 'rgba(14, 79, 47, 0.12)', color: '#0E4F2F' }}
-              >
-                +
-              </span>
-              <span className="pill-label-text">
-                {language === 'ar' ? 'تسجيل دفعة' : 'Add Payment'}
-              </span>
+      <section className="quick-actions-bar" aria-labelledby="quickActionsTitle">
+        <div className="actions-header-row">
+          <h4 id="quickActionsTitle" className="actions-title-header">
+            {isAr ? 'إجراءات سريعة' : 'Quick Actions'}
+          </h4>
+          {onExportBackup && (
+            <button
+              id="qaExportBackupBtn"
+              type="button"
+              onClick={onExportBackup}
+              className="actions-utility-btn"
+            >
+              <Download size={13} aria-hidden="true" />
+              {isAr ? 'نسخة احتياطية' : 'Export Backup'}
             </button>
           )}
-
-          <button id="qaAddExpenseBtn" onClick={onOpenAddExpense} className="action-pill-btn">
-            <span className="pill-icon-circle accent-orange-icon">+</span>
-            <span className="pill-label-text">
-              {language === 'ar' ? 'تسجيل مصاريف' : 'Add Expense'}
-            </span>
-          </button>
         </div>
+
+        <div className="actions-group" role="group" aria-label={isAr ? 'إنشاء' : 'Create'}>
+          <span className="actions-group-label">{isAr ? 'إنشاء' : 'Create'}</span>
+          <div className="actions-button-grid">{createActions.map(renderQuickAction)}</div>
+        </div>
+
+        {goToActions.length > 0 && (
+          <div className="actions-group" role="group" aria-label={isAr ? 'انتقال إلى' : 'Go to'}>
+            <span className="actions-group-label">{isAr ? 'انتقال إلى' : 'Go to'}</span>
+            <div className="actions-button-grid">{goToActions.map(renderQuickAction)}</div>
+          </div>
+        )}
       </section>
 
       {/* Charts & Graphs: High-End Cashflow & Project Status */}
@@ -607,41 +648,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
           <div className="chart-legend-column" style={{ marginTop: '16px' }}>
-            <div className="legend-item flex-between">
-              <div className="legend-label-group">
-                <span className="legend-dot" style={{ backgroundColor: '#0E4F2F' }}></span>
-                <span className="legend-label">{language === 'ar' ? 'تم التسليم' : 'Delivered'}</span>
+            {statusSegments.map((s) => (
+              <div key={s.key} className="legend-item flex-between">
+                <div className="legend-label-group">
+                  <span className="legend-dot" style={{ backgroundColor: s.color }}></span>
+                  <span className="legend-label">{s.label}</span>
+                </div>
+                <span className="legend-val-num">{s.count}</span>
               </div>
-              <span className="legend-val-num">{deliveredCount}</span>
-            </div>
-            <div className="legend-item flex-between">
-              <div className="legend-label-group">
-                <span className="legend-dot" style={{ backgroundColor: '#22C55E' }}></span>
-                <span className="legend-label">{language === 'ar' ? 'مكتمل' : 'Completed'}</span>
-              </div>
-              <span className="legend-val-num">{completedCount}</span>
-            </div>
-            <div className="legend-item flex-between">
-              <div className="legend-label-group">
-                <span className="legend-dot" style={{ backgroundColor: '#E77C40' }}></span>
-                <span className="legend-label">{language === 'ar' ? 'قيد التنفيذ' : 'In Progress'}</span>
-              </div>
-              <span className="legend-val-num">{inProgressCount}</span>
-            </div>
-            <div className="legend-item flex-between">
-              <div className="legend-label-group">
-                <span className="legend-dot" style={{ backgroundColor: '#8C7CF0' }}></span>
-                <span className="legend-label">{language === 'ar' ? 'بانتظار العميل' : 'Waiting Client'}</span>
-              </div>
-              <span className="legend-val-num">{waitingCount}</span>
-            </div>
-            <div className="legend-item flex-between">
-              <div className="legend-label-group">
-                <span className="legend-dot" style={{ backgroundColor: '#E6E5E0' }}></span>
-                <span className="legend-label">{language === 'ar' ? 'مخطط له' : 'Planned'}</span>
-              </div>
-              <span className="legend-val-num">{plannedCount}</span>
-            </div>
+            ))}
           </div>
         </div>
       </section>
