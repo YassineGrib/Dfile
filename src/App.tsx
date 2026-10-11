@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LanguageProvider, useLanguage } from './components/LanguageContext';
 import { AuthForm } from './components/AuthForm';
 import { PreviewSide } from './components/PreviewSide';
@@ -17,12 +17,13 @@ import { PaymentsView } from './components/PaymentsView';
 import { SettingsView } from './components/SettingsView';
 import { AddPaymentModal } from './components/AddPaymentModal';
 import { FriendsDebtsView } from './components/FriendsDebtsView';
-import { authService } from './firebase/auth';
+import { authService, consumeFreshSignIn } from './firebase/auth';
+import { LockScreen } from './components/LockScreen';
 import { firestoreService, clearUserCaches } from './firebase/services';
 import { LegacyImportBanner } from './components/LegacyImportBanner';
 import { isFirebaseConfigured } from './firebase/config';
 import { useTheme } from './core';
-import type { Client, Project, Payment, Expense, Activity, Task, Invoice, Milestone, Contract, FreelancerProfile, Friend, FriendTransaction, FriendSettlement } from './types';
+import type { Client, Project, Payment, Expense, Activity, Task, Invoice, Milestone, Contract, FreelancerProfile, Friend, FriendTransaction, FriendSettlement, WorkspacePreferences } from './types';
 
 // New accounts start blank; name and email are filled from the signed-in account until the user edits them in Settings
 const defaultProfile: FreelancerProfile = {
@@ -66,6 +67,22 @@ const AuthAppContent: React.FC = () => {
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  // PIN quick-unlock: 'checking' until we know whether this account has a PIN enabled
+  const [lockState, setLockState] = useState<'checking' | 'locked' | 'unlocked'>('checking');
+  const [lockPin, setLockPin] = useState<{ hash: string; salt: string } | null>(null);
+  const lockDecidedRef = useRef(false);
+
+  const decideLock = (security: WorkspacePreferences['security'] | undefined) => {
+    if (lockDecidedRef.current) return;
+    lockDecidedRef.current = true;
+    if (security?.pin_enabled && security.pin_hash && security.pin_salt) {
+      setLockPin({ hash: security.pin_hash, salt: security.pin_salt });
+      setLockState('locked');
+    } else {
+      setLockState('unlocked');
+    }
+  };
 
   // Initialize saved typography theme
   useEffect(() => {
@@ -181,7 +198,23 @@ const AuthAppContent: React.FC = () => {
       const unsubAuth = authService.onAuthStateChanged((user) => {
         if (!user) {
           resetWorkspaceState();
+          lockDecidedRef.current = false;
+          setLockPin(null);
+          setLockState('checking');
         } else {
+          if (consumeFreshSignIn()) {
+            // Just verified with password/Google in this window: no PIN needed
+            lockDecidedRef.current = true;
+            setLockState('unlocked');
+          } else {
+            // Restored session: decide from the cached settings now, or from the first settings snapshot
+            try {
+              const cached = localStorage.getItem('fintask_workspace_prefs');
+              if (cached) decideLock((JSON.parse(cached) as WorkspacePreferences).security);
+            } catch {
+              // Unreadable cache: wait for the settings snapshot
+            }
+          }
           // Saved profile (from Settings) arrives later via the settings listener and takes priority
           setFreelancerProfile(prev => ({
             ...prev,
@@ -228,6 +261,7 @@ const AuthAppContent: React.FC = () => {
         localStorage.setItem('indflow_friend_settlements', JSON.stringify(items));
       });
       const unsubSettings = firestoreService.subscribeWorkspacePreferences((prefs) => {
+        decideLock(prefs?.security);
         if (prefs) {
           if (prefs.profile) {
             setFreelancerProfile(prefs.profile);
@@ -252,7 +286,11 @@ const AuthAppContent: React.FC = () => {
         }
       });
 
+      // If settings never arrive (e.g. first launch offline), don't leave the user on a blank screen
+      const lockFallback = setTimeout(() => decideLock(undefined), 5000);
+
       return () => {
+        clearTimeout(lockFallback);
         unsubClients();
         unsubProjects();
         unsubExpenses();
@@ -714,6 +752,19 @@ const AuthAppContent: React.FC = () => {
             <AuthForm onLoginSuccess={() => setIsAuthenticated(true)} />
           </div>
         </div>
+      ) : isFirebaseConfigured && lockState !== 'unlocked' ? (
+        // Workspace isn't rendered at all until unlocked
+        lockState === 'locked' && lockPin ? (
+          <LockScreen
+            pinHash={lockPin.hash}
+            pinSalt={lockPin.salt}
+            userName={freelancerProfile.name}
+            onUnlock={() => setLockState('unlocked')}
+            onSignOut={handleLogout}
+          />
+        ) : (
+          <div className="lock-screen" aria-busy="true" />
+        )
       ) : (
         <div className="workspace-layout">
           {/* Sidebar Nav */}

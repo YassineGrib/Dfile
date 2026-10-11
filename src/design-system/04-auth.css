@@ -276,3 +276,114 @@ html[lang="ar"] .preview-headline { font-family: var(--font-ar); font-size: 2.0r
 }
 
 .preview-cover-image:hover { transform: scale(1.02); opacity: 1; }
+
+/* ── PIN Lock Screen ── */
+.lock-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: var(--bg-canvas);
+}
+
+.lock-card {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 32px 28px 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.lock-icon {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-purple);
+  background-color: color-mix(in srgb, currentColor 13%, transparent);
+  margin-bottom: 16px;
+}
+
+.lock-title { font-size: 1.2rem; font-weight: 500; color: var(--text-main); margin: 0 0 6px; }
+.lock-subtitle { font-size: 0.85rem; color: var(--text-muted); margin: 0 0 22px; }
+
+.lock-dots { display: flex; gap: 14px; cursor: text; padding: 4px; }
+
+.lock-dot {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid var(--text-placeholder);
+  transition: background-color 120ms ease, border-color 120ms ease, transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.lock-dot.filled { background-color: var(--text-main); border-color: var(--text-main); transform: scale(1.08); }
+.lock-dot.error { border-color: #D32F2F; }
+
+/* Visually hidden but focusable, so typing and pasting work */
+.lock-hidden-input {
+  position: absolute;
+  width: 1px; height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lock-dots:focus-within .lock-dot:not(.filled) { border-color: var(--border-color-focus); }
+
+.lock-status { min-height: 1.2em; margin: 12px 0 16px; font-size: 0.8rem; color: #D32F2F; }
+
+.lock-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 64px);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.lock-key {
+  height: 52px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1), background-color 150ms ease;
+}
+
+.lock-key-muted { color: var(--text-muted); }
+.lock-key:active:not(:disabled) { transform: scale(0.95); }
+.lock-key:disabled { opacity: 0.45; cursor: not-allowed; }
+.lock-key:focus-visible,
+.lock-signout:focus-visible { outline: 2px solid var(--border-color-focus); outline-offset: 2px; }
+
+@media (hover: hover) and (pointer: fine) {
+  .lock-key:hover:not(:disabled) { background: var(--bg-sidebar); }
+  .lock-signout:hover { color: var(--text-main); }
+}
+
+.lock-signout {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lock-dot, .lock-key { transition: background-color 150ms ease, border-color 150ms ease; }
+  .lock-dot.filled, .lock-key:active:not(:disabled) { transform: none; }
+}

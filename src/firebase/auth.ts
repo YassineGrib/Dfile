@@ -62,6 +62,31 @@ async function applyRememberMe(remember: boolean) {
   await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
 }
 
+/**
+ * A password/Google sign-in in this window counts as already verified, so the PIN lock is skipped.
+ * Restoring a saved session on app start does not set this, so the lock screen appears.
+ */
+const FRESH_SIGN_IN_KEY = 'indflow_fresh_sign_in';
+
+function markFreshSignIn() {
+  try {
+    sessionStorage.setItem(FRESH_SIGN_IN_KEY, '1');
+  } catch {
+    // Storage unavailable: the user will simply be asked for the PIN
+  }
+}
+
+/** Returns true once after a fresh sign-in, then forgets it. */
+export function consumeFreshSignIn(): boolean {
+  try {
+    const fresh = sessionStorage.getItem(FRESH_SIGN_IN_KEY) === '1';
+    sessionStorage.removeItem(FRESH_SIGN_IN_KEY);
+    return fresh;
+  } catch {
+    return false;
+  }
+}
+
 export const authService = {
   signIn: async (email: string, pass: string, lang: 'en' | 'ar' = 'en', remember = true) => {
     if (!isFirebaseConfigured || !auth) {
@@ -69,9 +94,11 @@ export const authService = {
     }
     try {
       await applyRememberMe(remember);
+      markFreshSignIn();
       const res = await signInWithEmailAndPassword(auth, email, pass);
       return { user: res.user, error: null };
     } catch (err: unknown) {
+      consumeFreshSignIn();
       return { user: null, error: formatAuthError(err, lang) };
     }
   },
@@ -81,6 +108,7 @@ export const authService = {
       return { user: { email, uid: 'mock_uid', displayName: fullName } as unknown as User, error: null };
     }
     try {
+      markFreshSignIn();
       const res = await createUserWithEmailAndPassword(auth, email, pass);
       if (fullName && res.user) {
         try {
@@ -91,6 +119,7 @@ export const authService = {
       }
       return { user: res.user, error: null };
     } catch (err: unknown) {
+      consumeFreshSignIn();
       return { user: null, error: formatAuthError(err, lang) };
     }
   },
@@ -101,9 +130,11 @@ export const authService = {
     }
     try {
       await applyRememberMe(remember);
+      markFreshSignIn();
       const res = await signInWithPopup(auth, googleProvider);
       return { user: res.user, error: null };
     } catch (err: unknown) {
+      consumeFreshSignIn();
       return { user: null, error: formatAuthError(err, lang) };
     }
   },
