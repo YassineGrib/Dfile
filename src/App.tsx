@@ -71,13 +71,17 @@ const AuthAppContent: React.FC = () => {
   // PIN quick-unlock: 'checking' until we know whether this account has a PIN enabled
   const [lockState, setLockState] = useState<'checking' | 'locked' | 'unlocked'>('checking');
   const [lockPin, setLockPin] = useState<{ hash: string; salt: string } | null>(null);
+  const [lockBiometric, setLockBiometric] = useState(false);
   const lockDecidedRef = useRef(false);
 
   const decideLock = (security: WorkspacePreferences['security'] | undefined) => {
     if (lockDecidedRef.current) return;
     lockDecidedRef.current = true;
-    if (security?.pin_enabled && security.pin_hash && security.pin_salt) {
-      setLockPin({ hash: security.pin_hash, salt: security.pin_salt });
+    const hasPin = Boolean(security?.pin_enabled && security.pin_hash && security.pin_salt);
+    const hasBiometric = security?.biometrics_enabled === true;
+    if (hasPin || hasBiometric) {
+      setLockPin(hasPin ? { hash: security!.pin_hash!, salt: security!.pin_salt! } : null);
+      setLockBiometric(hasBiometric);
       setLockState('locked');
     } else {
       setLockState('unlocked');
@@ -200,6 +204,7 @@ const AuthAppContent: React.FC = () => {
           resetWorkspaceState();
           lockDecidedRef.current = false;
           setLockPin(null);
+          setLockBiometric(false);
           setLockState('checking');
         } else {
           if (consumeFreshSignIn()) {
@@ -754,10 +759,11 @@ const AuthAppContent: React.FC = () => {
         </div>
       ) : isFirebaseConfigured && lockState !== 'unlocked' ? (
         // Workspace isn't rendered at all until unlocked
-        lockState === 'locked' && lockPin ? (
+        lockState === 'locked' ? (
           <LockScreen
-            pinHash={lockPin.hash}
-            pinSalt={lockPin.salt}
+            pinHash={lockPin?.hash}
+            pinSalt={lockPin?.salt}
+            biometricEnabled={lockBiometric}
             userName={freelancerProfile.name}
             onUnlock={() => setLockState('unlocked')}
             onSignOut={handleLogout}

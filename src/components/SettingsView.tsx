@@ -8,6 +8,7 @@ import { isFirebaseConfigured } from '../firebase/config';
 import { UserAvatar } from './UserAvatar';
 import { useTheme } from '../core';
 import { hashPin } from '../core/pin';
+import { getBiometricAvailability, verifyBiometric, type BiometricAvailability } from '../core/biometric';
 import { firestoreService } from '../firebase/services';
 import { authService } from '../firebase/auth';
 import type { FreelancerProfile, WorkspacePreferences } from '../types';
@@ -401,10 +402,43 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
 
-  const handleToggleBiometrics = (enabled: boolean) => {
-    setBiometricsEnabled(enabled);
-    saveSecurity({ biometrics_enabled: enabled });
-    triggerToast(enabled ? (language === 'ar' ? 'تم تفعيل مصادقة البصمة وحفظها' : 'Biometrics lock enabled and saved') : (language === 'ar' ? 'تم تعطيل مصادقة البصمة وحفظها' : 'Biometrics lock disabled and saved'));
+  const [isCheckingBiometrics, setIsCheckingBiometrics] = useState(false);
+
+  const handleToggleBiometrics = async (enabled: boolean) => {
+    if (!enabled) {
+      setBiometricsEnabled(false);
+      saveSecurity({ biometrics_enabled: false });
+      triggerToast(language === 'ar' ? 'تم تعطيل مصادقة البصمة وحفظها' : 'Biometrics lock disabled and saved');
+      return;
+    }
+
+    // Only turn it on after Windows Hello is available and the user has proved it works once
+    setIsCheckingBiometrics(true);
+    try {
+      const availability = await getBiometricAvailability();
+      if (availability !== 'available') {
+        const reasons: Record<Exclude<BiometricAvailability, 'available'>, [string, string]> = {
+          'not-configured': ['Set up Windows Hello (fingerprint, face or PIN) in Windows Settings › Accounts › Sign-in options first.', 'قم بإعداد Windows Hello (البصمة أو الوجه أو PIN) من إعدادات ويندوز › الحسابات › خيارات تسجيل الدخول أولاً.'],
+          'no-device': ['No fingerprint reader or Windows Hello device was found on this computer.', 'لم يتم العثور على قارئ بصمة أو جهاز Windows Hello على هذا الحاسوب.'],
+          'unsupported': ['Fingerprint unlock is only available in the Windows desktop app.', 'فتح القفل بالبصمة متاح فقط في تطبيق ويندوز المكتبي.'],
+        };
+        const [en, ar] = reasons[availability];
+        triggerToast(language === 'ar' ? ar : en, true);
+        return;
+      }
+
+      const result = await verifyBiometric(language === 'ar' ? 'تأكيد تفعيل البصمة لـ Dfile' : 'Confirm fingerprint unlock for Dfile');
+      if (result !== 'verified') {
+        triggerToast(language === 'ar' ? 'لم يتم التحقق. لم يتم تفعيل البصمة.' : 'Verification was not completed. Fingerprint unlock stays off.', true);
+        return;
+      }
+
+      setBiometricsEnabled(true);
+      saveSecurity({ biometrics_enabled: true });
+      triggerToast(language === 'ar' ? 'تم تفعيل فتح القفل بالبصمة' : 'Fingerprint unlock enabled');
+    } finally {
+      setIsCheckingBiometrics(false);
+    }
   };
 
   const handleGoogleConnectToggle = () => {
@@ -1144,14 +1178,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     {language === 'ar' ? 'مصادقة البصمة والقياسات الحيوية' : 'Biometric Fingerprint Lock'}
                   </h5>
                   <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-placeholder)' }}>
-                    {language === 'ar' ? 'تفعيل مستشعر البصمة للأجهزة المحمولة المتوافقة.' : 'Allow unlocking using device\'s native biometric scanners.'}
+                    {language === 'ar' ? 'فتح القفل عبر Windows Hello (البصمة أو الوجه أو رمز Hello).' : 'Unlock with Windows Hello — fingerprint, face or Hello PIN.'}
                   </p>
                 </div>
-                <button 
+                <button
+                  type="button"
                   onClick={() => handleToggleBiometrics(!biometricsEnabled)}
-                  style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}
+                  disabled={isCheckingBiometrics}
+                  aria-pressed={biometricsEnabled}
+                  style={{ border: 'none', background: 'transparent', cursor: isCheckingBiometrics ? 'progress' : 'pointer' }}
                 >
-                  {biometricsEnabled ? (
+                  {isCheckingBiometrics ? (
+                    <Loader2 size={16} className="animate-spin" aria-label={language === 'ar' ? 'جارٍ التحقق' : 'Checking'} />
+                  ) : biometricsEnabled ? (
                     <span style={{ color: '#2E7D32', fontWeight: 500 }}>ON</span>
                   ) : (
                     <span style={{ color: 'var(--text-placeholder)' }}>OFF</span>

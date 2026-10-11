@@ -387,3 +387,30 @@ html[lang="ar"] .preview-headline { font-family: var(--font-ar); font-size: 2.0r
   .lock-dot, .lock-key { transition: background-color 150ms ease, border-color 150ms ease; }
   .lock-dot.filled, .lock-key:active:not(:disabled) { transform: none; }
 }
+
+/* Fingerprint-only unlock (no PIN set) */
+.lock-bio-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 46px;
+  margin-bottom: 14px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--btn-primary);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 150ms ease;
+}
+
+.lock-bio-btn:active:not(:disabled) { transform: scale(0.97); }
+.lock-bio-btn:disabled { opacity: 0.75; cursor: progress; }
+.lock-bio-btn:focus-visible { outline: 2px solid var(--border-color-focus); outline-offset: 2px; }
+
+@media (hover: hover) and (pointer: fine) {
+  .lock-bio-btn:hover:not(:disabled) { background: var(--btn-primary-hover); }
+}
