@@ -113,8 +113,9 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
             generatorTerms === 'milestones' ? '30% upfront, 40% on milestone approval, and 30% on production release.' :
             '100% full project payment upon complete launch and acceptance.';
 
-          const flName = freelancerProfile?.name || 'Sadek Rahman';
-          const flAddr = freelancerProfile?.address || 'Algiers, Algeria';
+          // Visible placeholders prompt the user to fill in their profile rather than signing as someone else
+          const flName = freelancerProfile?.name || '[Your Name]';
+          const flAddr = freelancerProfile?.address || '[Your Address]';
           const defaultClauses = `3. INTELLECTUAL PROPERTY & TRANSFER
 All title, rights, and interest in and to the custom source code, assets, and layouts created under this project shall remain with the Freelancer until all outstanding invoices are cleared by the Client. Upon final settlement, full IP transfers automatically to the Client.
 

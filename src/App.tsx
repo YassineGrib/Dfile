@@ -18,18 +18,22 @@ import { SettingsView } from './components/SettingsView';
 import { AddPaymentModal } from './components/AddPaymentModal';
 import { FriendsDebtsView } from './components/FriendsDebtsView';
 import { authService } from './firebase/auth';
-import { firestoreService } from './firebase/services';
+import { firestoreService, clearUserCaches } from './firebase/services';
+import { LegacyImportBanner } from './components/LegacyImportBanner';
 import { isFirebaseConfigured } from './firebase/config';
 import { useTheme } from './core';
 import type { Client, Project, Payment, Expense, Activity, Task, Invoice, Milestone, Contract, FreelancerProfile, Friend, FriendTransaction, FriendSettlement } from './types';
 
-const defaultProfile = {
-  name: 'Sadek Rahman',
-  designation: 'Senior Full-Stack Developer & Designer',
-  email: 'sadek@decabyte.space',
-  phone: '+213 (0) 550 12 34 56',
-  address: 'Algiers, Algeria'
+// New accounts start blank; name and email are filled from the signed-in account until the user edits them in Settings
+const defaultProfile: FreelancerProfile = {
+  name: '',
+  designation: '',
+  email: '',
+  phone: '',
+  address: ''
 };
+
+const defaultCategories = ['Web Design', 'Development', 'SEO Optimization', 'Design Retainer'];
 
 const defaultClauses = `1. CONFIDENTIALITY: The Developer agrees to keep all proprietary client information strictly confidential.
 2. SOURCE CODE DELIVERY: All source repositories will be transferred to the Client immediately upon 100% final clearance of milestones.
@@ -147,13 +151,44 @@ const AuthAppContent: React.FC = () => {
         console.warn('Could not parse saved project categories:', e);
       }
     }
-    return ['Web Design', 'Development', 'SEO Optimization', 'Design Retainer'];
+    return defaultCategories;
   });
+
+  // Drop every trace of the previous user's data (memory + device cache) so the next sign-in starts clean
+  const resetWorkspaceState = () => {
+    clearUserCaches();
+    setClients([]);
+    setProjects([]);
+    setPayments([]);
+    setExpenses([]);
+    setInvoices([]);
+    setActivities([]);
+    setTasks([]);
+    setMilestones([]);
+    setContracts([]);
+    setFriends([]);
+    setFriendTransactions([]);
+    setFriendSettlements([]);
+    setFreelancerProfile(defaultProfile);
+    setContractClauses(defaultClauses);
+    setProjectCategories(defaultCategories);
+    setActiveTab('dashboard');
+  };
 
   // Auth state listener
   useEffect(() => {
     if (isFirebaseConfigured) {
       const unsubAuth = authService.onAuthStateChanged((user) => {
+        if (!user) {
+          resetWorkspaceState();
+        } else {
+          // Saved profile (from Settings) arrives later via the settings listener and takes priority
+          setFreelancerProfile(prev => ({
+            ...prev,
+            name: prev.name || user.displayName || '',
+            email: prev.email || user.email || ''
+          }));
+        }
         setIsAuthenticated(Boolean(user));
       });
       return () => unsubAuth();
@@ -537,6 +572,7 @@ const AuthAppContent: React.FC = () => {
 
   const handleLogout = async () => {
     await authService.signOut();
+    resetWorkspaceState();
     setIsAuthenticated(false);
   };
 
@@ -698,6 +734,8 @@ const AuthAppContent: React.FC = () => {
 
           {/* Main Workspace Frame */}
           <main className="workspace-main-panel">
+            {isFirebaseConfigured && <LegacyImportBanner />}
+
             {/* Render views depending on active tab */}
             {activeTab === 'dashboard' && (
               <DashboardView
@@ -710,6 +748,8 @@ const AuthAppContent: React.FC = () => {
                 onOpenAddClient={() => setIsClientModalOpen(true)}
                 onOpenAddExpense={() => setIsExpenseModalOpen(true)}
                 onOpenAddPayment={() => setIsPaymentModalOpen(true)}
+                onNavigate={setActiveTab}
+                onExportBackup={handleExportBackup}
                 freelancerName={freelancerProfile.name}
               />
             )}

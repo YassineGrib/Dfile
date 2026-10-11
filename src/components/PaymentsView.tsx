@@ -23,7 +23,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
   projects,
   onOpenAddPayment,
   onDeletePayment,
-  freelancerName = 'Sadek Rahman',
+  freelancerName = '',
 }) => {
   const { language } = useLanguage();
 

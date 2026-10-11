@@ -18,7 +18,7 @@ export const PaymentReceiptModal: React.FC<PaymentReceiptModalProps> = ({
   client,
   project,
   allProjectPayments = [],
-  freelancerName = 'Sadek Rahman',
+  freelancerName = '',
   onClose,
 }) => {
   const { language } = useLanguage();

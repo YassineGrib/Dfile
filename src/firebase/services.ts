@@ -7,8 +7,49 @@ import {
   deleteDoc,
   onSnapshot 
 } from 'firebase/firestore';
-import { db, isFirebaseConfigured } from './config';
+import { auth, db, isFirebaseConfigured } from './config';
 import type { Client, Project, Expense, Invoice, Task, Payment, Activity, Milestone, Contract, WorkspacePreferences, Friend, FriendTransaction, FriendSettlement } from '../types';
+
+/**
+ * All workspace data is private to the signed-in user and lives under users/{uid}/...
+ * Returns null when nobody is signed in, so callers can no-op instead of touching shared data.
+ */
+function userCollection(collectionName: string) {
+  const uid = auth?.currentUser?.uid;
+  if (!db || !uid) return null;
+  return collection(db, 'users', uid, collectionName);
+}
+
+function userDoc(collectionName: string, id: string) {
+  const uid = auth?.currentUser?.uid;
+  if (!db || !uid) return null;
+  return doc(db, 'users', uid, collectionName, id);
+}
+
+const SETTINGS_COLLECTION = 'settings';
+const SETTINGS_DOC_ID = 'workspace';
+
+/** localStorage keys that hold a copy of the signed-in user's data */
+const USER_CACHE_KEYS = [
+  'fintask_workspace_prefs',
+  'fintask_freelancer_profile',
+  'fintask_contract_clauses',
+  'fintask_project_categories',
+  'indflow_friends',
+  'indflow_friend_transactions',
+  'indflow_friend_settlements',
+];
+
+/** Remove every cached copy of user data from this device (call on sign-out). */
+export function clearUserCaches(): void {
+  for (const key of USER_CACHE_KEYS) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // Storage may be unavailable; nothing to clear
+    }
+  }
+}
 
 /**
  * Generic Firestore collection fetcher
@@ -16,7 +57,8 @@ import type { Client, Project, Expense, Invoice, Task, Payment, Activity, Milest
 export async function fetchCollection<T>(collectionName: string): Promise<T[]> {
   if (!isFirebaseConfigured || !db) return [];
   try {
-    const colRef = collection(db, collectionName);
+    const colRef = userCollection(collectionName);
+    if (!colRef) return [];
     const snapshot = await getDocs(colRef);
     return snapshot.docs.map(d => ({ ...d.data(), id: d.id } as T));
   } catch (err) {
@@ -34,7 +76,8 @@ export function subscribeCollection<T>(
 ): () => void {
   if (!isFirebaseConfigured || !db) return () => {};
   try {
-    const colRef = collection(db, collectionName);
+    const colRef = userCollection(collectionName);
+    if (!colRef) return () => {};
     return onSnapshot(
       colRef, 
       (snapshot) => {
@@ -60,7 +103,8 @@ export async function saveDocument<T extends { id: string }>(
 ): Promise<void> {
   if (!isFirebaseConfigured || !db) return;
   try {
-    const docRef = doc(db, collectionName, item.id);
+    const docRef = userDoc(collectionName, item.id);
+    if (!docRef) return;
     // Cleanly strip any undefined values that Firestore rejects
     const cleanItem = JSON.parse(JSON.stringify(item));
     await setDoc(docRef, cleanItem, { merge: true });
@@ -75,7 +119,8 @@ export async function saveDocument<T extends { id: string }>(
 export async function removeDocument(collectionName: string, id: string): Promise<void> {
   if (!isFirebaseConfigured || !db) return;
   try {
-    const docRef = doc(db, collectionName, id);
+    const docRef = userDoc(collectionName, id);
+    if (!docRef) return;
     await deleteDoc(docRef);
   } catch (err) {
     console.error(`Error deleting document ${id} from ${collectionName}:`, err);
@@ -139,10 +184,11 @@ export const firestoreService = {
   deleteContract: (id: string) => removeDocument('contracts', id),
 
   // DecaByte Workspace Preferences (Backend Persistence)
-  getWorkspacePreferences: async (id = 'workspace_default'): Promise<WorkspacePreferences | null> => {
+  getWorkspacePreferences: async (): Promise<WorkspacePreferences | null> => {
     if (!isFirebaseConfigured || !db) return null;
     try {
-      const docRef = doc(db, 'settings', id);
+      const docRef = userDoc(SETTINGS_COLLECTION, SETTINGS_DOC_ID);
+      if (!docRef) return null;
       const snapshot = await getDoc(docRef);
       if (snapshot.exists()) {
         return { ...snapshot.data(), id: snapshot.id } as WorkspacePreferences;
@@ -155,8 +201,7 @@ export const firestoreService = {
   },
 
   subscribeWorkspacePreferences: (
-    callback: (prefs: WorkspacePreferences | null) => void,
-    id = 'workspace_default'
+    callback: (prefs: WorkspacePreferences | null) => void
   ): (() => void) => {
     // 1. Immediately emit cached localStorage data if available
     try {
@@ -170,7 +215,8 @@ export const firestoreService = {
 
     if (!isFirebaseConfigured || !db) return () => {};
     try {
-      const docRef = doc(db, 'settings', id);
+      const docRef = userDoc(SETTINGS_COLLECTION, SETTINGS_DOC_ID);
+      if (!docRef) return () => {};
       return onSnapshot(
         docRef,
         (snapshot) => {
@@ -200,8 +246,7 @@ export const firestoreService = {
   },
 
   saveWorkspacePreferences: async (
-    prefs: Partial<WorkspacePreferences>,
-    id = 'workspace_default'
+    prefs: Partial<WorkspacePreferences>
   ): Promise<void> => {
     // 1. Immediately update localStorage cache
     try {
@@ -218,10 +263,11 @@ export const firestoreService = {
 
     if (!isFirebaseConfigured || !db) return;
     try {
-      const docRef = doc(db, 'settings', id);
-      const cleanData = JSON.parse(JSON.stringify({ 
-        ...prefs, 
-        id, 
+      const docRef = userDoc(SETTINGS_COLLECTION, SETTINGS_DOC_ID);
+      if (!docRef) return;
+      const cleanData = JSON.parse(JSON.stringify({
+        ...prefs,
+        id: SETTINGS_DOC_ID,
         updated_at: new Date().toISOString() 
       }));
       await setDoc(docRef, cleanData, { merge: true });

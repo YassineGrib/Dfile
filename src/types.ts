@@ -149,9 +149,11 @@ export interface WorkspacePreferences {
   font_theme?: string;
   theme_mode?: 'light' | 'dark' | 'system';
   security?: {
-    pin_enabled: boolean;
-    pin_code: string;
-    biometrics_enabled: boolean;
+    pin_enabled?: boolean;
+    /** Salted PBKDF2 hash of the PIN — the PIN itself is never stored */
+    pin_hash?: string;
+    pin_salt?: string;
+    biometrics_enabled?: boolean;
   };
   integrations?: {
     google_connected: boolean;

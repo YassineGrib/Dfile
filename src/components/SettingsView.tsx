@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, Shield, Link, Bell, Info, Save, Key, 
   Download, LogOut, Check, Globe, Moon, Sun, Monitor,
@@ -7,9 +7,10 @@ import {
 import { isFirebaseConfigured } from '../firebase/config';
 import { UserAvatar } from './UserAvatar';
 import { useTheme } from '../core';
+import { hashPin } from '../core/pin';
 import { firestoreService } from '../firebase/services';
 import { authService } from '../firebase/auth';
-import type { FreelancerProfile } from '../types';
+import type { FreelancerProfile, WorkspacePreferences } from '../types';
 
 interface FontThemeOption {
   id: string;
@@ -190,10 +191,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     triggerToast(msg);
   };
 
-  // Security Lock states
-  const [pinEnabled, setPinEnabled] = useState(true);
-  const [biometricsEnabled, setBiometricsEnabled] = useState(true);
-  const [pinCode, setPinCode] = useState('1234');
+  // Security Lock states — off until the user opts in; the PIN is only ever stored hashed
+  const [pinEnabled, setPinEnabled] = useState(false);
+  const [biometricsEnabled, setBiometricsEnabled] = useState(false);
+  const [pinCode, setPinCode] = useState('');
+  const [hasPin, setHasPin] = useState(false);
+  const securityRef = useRef<NonNullable<WorkspacePreferences['security']>>({});
+
+  const saveSecurity = (changes: NonNullable<WorkspacePreferences['security']>) => {
+    securityRef.current = { ...securityRef.current, ...changes };
+    firestoreService.saveWorkspacePreferences({ security: securityRef.current });
+  };
   
   // Google Calendar Integration states
   const [googleConnected, setGoogleConnected] = useState(false);
@@ -263,9 +271,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         setMode(prefs.theme_mode);
       }
       if (prefs.security) {
-        if (typeof prefs.security.pin_enabled === 'boolean') setPinEnabled(prefs.security.pin_enabled);
+        securityRef.current = prefs.security;
+        const pinIsSet = Boolean(prefs.security.pin_hash && prefs.security.pin_salt);
+        setHasPin(pinIsSet);
+        setPinEnabled(pinIsSet && prefs.security.pin_enabled === true);
         if (typeof prefs.security.biometrics_enabled === 'boolean') setBiometricsEnabled(prefs.security.biometrics_enabled);
-        if (typeof prefs.security.pin_code === 'string') setPinCode(prefs.security.pin_code);
       }
       if (prefs.integrations) {
         if (typeof prefs.integrations.google_connected === 'boolean') setGoogleConnected(prefs.integrations.google_connected);
@@ -369,39 +379,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const handleTogglePin = (enabled: boolean) => {
     setPinEnabled(enabled);
-    firestoreService.saveWorkspacePreferences({
-      security: {
-        pin_enabled: enabled,
-        pin_code: pinCode,
-        biometrics_enabled: biometricsEnabled
-      }
-    });
+    setPinCode('');
+    // Turning the lock on only takes effect once a PIN exists; until then just reveal the PIN field
+    if (enabled && !hasPin) return;
+    saveSecurity({ pin_enabled: enabled });
     triggerToast(enabled ? (language === 'ar' ? 'تم تفعيل قفل PIN وحفظه' : 'PIN lock enabled and saved') : (language === 'ar' ? 'تم تعطيل قفل PIN وحفظه' : 'PIN lock disabled and saved'));
   };
 
-  const handlePinCodeChange = (code: string) => {
+  const handlePinCodeChange = async (code: string) => {
     setPinCode(code);
-    if (code.length === 4) {
-      firestoreService.saveWorkspacePreferences({
-        security: {
-          pin_enabled: pinEnabled,
-          pin_code: code,
-          biometrics_enabled: biometricsEnabled
-        }
-      });
-      triggerToast(language === 'ar' ? 'تم حفظ رمز PIN الجديد بالسحابة' : 'New PIN passcode saved to cloud');
+    if (code.length !== 4) return;
+    try {
+      const hashed = await hashPin(code);
+      saveSecurity({ pin_enabled: true, ...hashed });
+      setHasPin(true);
+      setPinCode('');
+      triggerToast(language === 'ar' ? 'تم حفظ رمز PIN الجديد بأمان' : 'New PIN saved securely');
+    } catch (err) {
+      console.error('Could not hash PIN:', err);
+      triggerToast(language === 'ar' ? 'تعذر حفظ رمز PIN' : 'Could not save the PIN', true);
     }
   };
 
   const handleToggleBiometrics = (enabled: boolean) => {
     setBiometricsEnabled(enabled);
-    firestoreService.saveWorkspacePreferences({
-      security: {
-        pin_enabled: pinEnabled,
-        pin_code: pinCode,
-        biometrics_enabled: enabled
-      }
-    });
+    saveSecurity({ biometrics_enabled: enabled });
     triggerToast(enabled ? (language === 'ar' ? 'تم تفعيل مصادقة البصمة وحفظها' : 'Biometrics lock enabled and saved') : (language === 'ar' ? 'تم تعطيل مصادقة البصمة وحفظها' : 'Biometrics lock disabled and saved'));
   };
 
@@ -417,7 +419,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       });
       triggerToast(language === 'ar' ? 'تم إلغاء ربط الحساب بنجاح' : 'Google Account unlinked.');
     } else {
-      const activeEmail = email || profile.email || 'sadek.rahman@gmail.com';
+      const activeEmail = email || profile.email || '';
       setGoogleConnected(true);
       setGoogleEmail(activeEmail);
       firestoreService.saveWorkspacePreferences({
@@ -1117,10 +1119,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               {/* Set PIN code form */}
               {pinEnabled && (
                 <div className="form-group-item animate-slide-in" style={{ maxWidth: '250px' }}>
-                  <label>{language === 'ar' ? 'رمز المرور الحالي PIN' : 'Active 4-Digit Passcode'}</label>
-                  <input 
-                    type="password" 
-                    maxLength={4} 
+                  <label>
+                    {hasPin
+                      ? (language === 'ar' ? 'تغيير رمز PIN (أدخل 4 أرقام جديدة)' : 'Change PIN (enter 4 new digits)')
+                      : (language === 'ar' ? 'اختر رمز PIN من 4 أرقام' : 'Choose a 4-digit PIN')}
+                  </label>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    autoComplete="new-password"
+                    maxLength={4}
                     value={pinCode} 
                     onChange={(e) => handlePinCodeChange(e.target.value.replace(/\D/g, ''))} 
                     className="milestone-form-input" 

@@ -2,6 +2,7 @@ rules_version = '2';
 
 // ===============================================================
 // Assumed Data Model for FinTask
+// All collections below live under users/{uid}/ and are private to that user.
 // ===============================================================
 //
 // Collection: clients
@@ -104,6 +105,10 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
     function hasRequiredFields(fields) {
       return request.resource.data.keys().hasAll(fields);
     }
@@ -153,95 +158,110 @@ service cloud.firestore {
              data.type in ['project', 'payment', 'expense', 'client'];
     }
 
+    // The PIN may only be stored hashed — never as plain text
+    function hasNoPlainPin(data) {
+      return !('security' in data) || !('pin_code' in data.security);
+    }
+
     // ===============================================================
-    // Rules for Collections
+    // Private per-user workspace: users/{uid}/...
+    // Only the signed-in owner can read or write anything in here.
     // ===============================================================
-
-    // Clients collection
-    match /clients/{clientId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidClient(request.resource.data);
-      allow update: if isAuthenticated() && isValidClient(request.resource.data);
-      allow delete: if isAuthenticated();
-    }
-
-    // Projects collection
-    match /projects/{projectId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidProject(request.resource.data);
-      allow update: if isAuthenticated() && isValidProject(request.resource.data);
-      allow delete: if isAuthenticated();
-    }
-
-    // Expenses collection
-    match /expenses/{expenseId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidExpense(request.resource.data);
-      allow update: if isAuthenticated() && isValidExpense(request.resource.data);
-      allow delete: if isAuthenticated();
-    }
-
-    // Invoices collection
-    match /invoices/{invoiceId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidInvoice(request.resource.data);
-      allow update: if isAuthenticated() && isValidInvoice(request.resource.data);
-      allow delete: if isAuthenticated();
-    }
-
-    // Tasks collection
-    match /tasks/{taskId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidTask(request.resource.data);
-      allow update: if isAuthenticated() && isValidTask(request.resource.data);
-      allow delete: if isAuthenticated();
-    }
-
-    // Payments collection
-    match /payments/{paymentId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidPayment(request.resource.data);
-      allow update: if isAuthenticated() && isValidPayment(request.resource.data);
-      allow delete: if isAuthenticated();
-    }
-
-    // Activities collection
-    match /activities/{activityId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidActivity(request.resource.data);
-      allow update: if isAuthenticated() && isValidActivity(request.resource.data);
-      allow delete: if isAuthenticated();
-    }
-
-    // Milestones collection
-    match /milestones/{milestoneId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() && hasRequiredFields(['id', 'project_id', 'title', 'date']);
-      allow delete: if isAuthenticated();
-    }
-
-    // Contracts collection
-    match /contracts/{contractId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() && hasRequiredFields(['id', 'title', 'project_id']);
-      allow delete: if isAuthenticated();
-    }
-
-    // Users collection (User Data Separation: users can only read/write their own profile)
     match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || resource.data.uid == request.auth.uid);
-      allow create, update: if isAuthenticated() && request.auth.uid == userId;
+      allow read, write: if isOwner(userId);
+
+      match /clients/{id} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidClient(request.resource.data);
+      }
+
+      match /projects/{id} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidProject(request.resource.data);
+      }
+
+      match /expenses/{id} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidExpense(request.resource.data);
+      }
+
+      match /invoices/{id} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidInvoice(request.resource.data);
+      }
+
+      match /tasks/{id} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidTask(request.resource.data);
+      }
+
+      match /payments/{id} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidPayment(request.resource.data);
+      }
+
+      match /activities/{id} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidActivity(request.resource.data);
+      }
+
+      match /milestones/{id} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && hasRequiredFields(['id', 'project_id', 'title', 'date']);
+      }
+
+      match /contracts/{id} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && hasRequiredFields(['id', 'title', 'project_id']);
+      }
+
+      match /settings/{id} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && hasNoPlainPin(request.resource.data);
+      }
+
+      match /support_tickets/{id} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /friends/{id} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /friend_transactions/{id} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /friend_settlements/{id} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
-    // Workspace Settings and Preferences
-    match /settings/{settingId} {
-      allow read, write: if isAuthenticated();
+    // ===============================================================
+    // Legacy shared data (before workspaces were private)
+    // The first account to write the claim owns it; only that account
+    // can then read the old collections to import them. Nobody can write them.
+    // ===============================================================
+    function claimPath() {
+      return /databases/$(database)/documents/legacy_migration/claim;
     }
 
-    // Support Tickets
-    match /support_tickets/{ticketId} {
-      allow read, create, update: if isAuthenticated();
-      allow delete: if isAuthenticated();
+    function isLegacyOwner() {
+      return isAuthenticated() && exists(claimPath()) && get(claimPath()).data.uid == request.auth.uid;
+    }
+
+    match /legacy_migration/claim {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.uid == request.auth.uid
+                    && request.resource.data.uid == request.auth.uid;
+    }
+
+    match /{legacyCollection}/{docId} {
+      allow read: if legacyCollection in ['clients', 'projects', 'expenses', 'invoices', 'tasks', 'payments',
+                                          'activities', 'milestones', 'contracts', 'settings',
+                                          'friends', 'friend_transactions', 'friend_settlements']
+                  && isLegacyOwner();
     }
 
     // Default deny for anything not explicitly matched
