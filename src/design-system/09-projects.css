@@ -36,7 +36,8 @@
 .proj-status-badge              { font-size: 0.7rem; font-weight: 500; }
 .proj-status-badge.status-completed  { color: #0E4F2F; }
 .proj-status-badge.status-in-progress { color: var(--accent-purple); }
-.proj-status-badge.status-planned    { color: var(--accent-orange); }
+.proj-status-badge.status-planned    { color: var(--text-muted); }
+.proj-status-badge.status-waiting-client { color: var(--accent-orange); }
 
 .proj-card-title { font-size: 1.05rem; font-weight: 500; color: var(--text-main); letter-spacing: -0.02em; }
 .proj-card-desc  { font-size: 0.8rem; color: var(--text-muted); font-weight: 450; line-height: 1.4; }
@@ -527,7 +528,7 @@
 .task-table-status-pill.status-nextup    { background-color: #EEF1F4; color: #7A8B99; }
 .task-table-status-pill.status-inprogress { background-color: var(--accent-purple-light); color: var(--accent-purple); }
 .task-table-status-pill.status-complete  { background-color: #E2F5EC; color: #0E4F2F; }
-.task-table-status-pill.status-completed { background-color: #ECFDF5; color: #15803d; }
+.task-table-status-pill.status-completed { background-color: #E2FFEF; color: #0E4F2F; }
 .task-table-status-pill.status-delivered { background-color: #E2F7EB; color: #0E4F2F; font-weight: 500; }
 .delivered-task-card { border-inline-start: 3px solid #0E4F2F !important; }
 

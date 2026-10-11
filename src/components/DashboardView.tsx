@@ -191,6 +191,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const marginPercentage = totalRangeInflow > 0 ? Math.round((totalRangeNet / totalRangeInflow) * 100) : 0;
   const hasTransactions = totalRangeInflow > 0 || totalRangeOutflow > 0;
 
+  // Chart colors come from the app theme palette. Forest is too dark to read
+  // on the dark card, so dark mode lifts it to a brighter green.
+  const isDark = resolvedMode === 'dark';
+  const forest = isDark ? '#4ADE80' : theme.colors.brand.forest;
+  const purple = theme.colors.brand.purple;
+  const orange = theme.colors.brand.orange;
+
   // Chart Data Configuration (Mixed Chart: Bar + Spline Line)
   const cashflowChartData = {
     labels: monthsData.map((m) => m.label),
@@ -199,14 +206,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         type: 'line' as const,
         label: language === 'ar' ? 'صافي التدفق (Net Profit)' : 'Net Cashflow',
         data: monthsData.map((m) => m.net),
-        borderColor: '#6E59DB',
-        backgroundColor: 'rgba(110, 89, 219, 0.08)',
+        borderColor: purple,
+        backgroundColor: `${purple}14`,
         borderWidth: 2.5,
         tension: 0.35,
         pointRadius: 4,
         pointHoverRadius: 6,
-        pointBackgroundColor: '#6E59DB',
-        pointBorderColor: '#FFFFFF',
+        pointBackgroundColor: purple,
+        pointBorderColor: theme.colors.bg.card,
         pointBorderWidth: 2,
         fill: true,
         order: 1,
@@ -215,8 +222,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         type: 'bar' as const,
         label: language === 'ar' ? 'المقبوضات (Inflow)' : 'Inflow (Payments)',
         data: monthsData.map((m) => m.inflow),
-        backgroundColor: '#0E4F2F',
-        hoverBackgroundColor: '#0A3B23',
+        backgroundColor: forest,
+        hoverBackgroundColor: isDark ? '#22C55E' : theme.colors.brand.forestHover,
         borderRadius: 5,
         barThickness: timeRange === '6m' ? 14 : 9,
         order: 2,
@@ -225,8 +232,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         type: 'bar' as const,
         label: language === 'ar' ? 'المصاريف (Outflow)' : 'Outflow (Expenses)',
         data: monthsData.map((m) => m.outflow),
-        backgroundColor: '#E77C40',
-        hoverBackgroundColor: '#D4692E',
+        backgroundColor: orange,
+        hoverBackgroundColor: `${orange}CC`,
         borderRadius: 5,
         barThickness: timeRange === '6m' ? 14 : 9,
         order: 3,
@@ -298,11 +305,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     },
   };
 
-  // Projects ratio statuses — colors come from the app theme palette.
-  // Done states share the forest brand hue (solid = delivered, tint = completed);
-  // forest is too dark to read on the dark card, so dark mode lifts it.
-  const isDark = resolvedMode === 'dark';
-  const forest = isDark ? '#4ADE80' : theme.colors.brand.forest;
+  // Projects ratio statuses — done states share the forest hue (solid = delivered, tint = completed)
   const statusSegments = [
     { key: 'Delivered', label: language === 'ar' ? 'تم التسليم' : 'Delivered', color: forest },
     { key: 'Completed', label: language === 'ar' ? 'مكتمل' : 'Completed', color: `${forest}73` },
@@ -534,7 +537,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="cashflow-kpi-ribbon">
             <div className="cashflow-ribbon-item">
               <span className="cashflow-ribbon-label">
-                <ArrowUpRight size={13} color="#0E4F2F" />
+                <ArrowUpRight size={13} color={forest} />
                 {language === 'ar' ? 'المقبوضات' : 'Total Inflow'}
               </span>
               <span className="cashflow-ribbon-val inflow-val">
@@ -544,7 +547,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             <div className="cashflow-ribbon-item">
               <span className="cashflow-ribbon-label">
-                <ArrowDownRight size={13} color="#E77C40" />
+                <ArrowDownRight size={13} color={orange} />
                 {language === 'ar' ? 'المصاريف' : 'Total Outflow'}
               </span>
               <span className="cashflow-ribbon-val outflow-val">
@@ -554,7 +557,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             <div className="cashflow-ribbon-item">
               <span className="cashflow-ribbon-label">
-                <Wallet size={13} color="#6E59DB" />
+                <Wallet size={13} color={purple} />
                 {language === 'ar' ? 'صافي السيولة' : 'Net Cashflow'}
               </span>
               <span className="cashflow-ribbon-val net-val">
@@ -564,7 +567,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             <div className="cashflow-ribbon-item">
               <span className="cashflow-ribbon-label">
-                <TrendingUp size={13} color="#3B82F6" />
+                <TrendingUp size={13} color={theme.colors.status.info} />
                 {language === 'ar' ? 'هامش الربح' : 'Profit Margin'}
               </span>
               <span className="cashflow-ribbon-val">
@@ -581,19 +584,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {/* Visual Legend */}
           <div className="chart-legend-row" style={{ marginTop: '14px' }}>
             <div className="legend-item">
-              <span className="legend-dot" style={{ backgroundColor: '#0E4F2F' }}></span>
+              <span className="legend-dot" style={{ backgroundColor: forest }}></span>
               <span className="legend-label">
                 {language === 'ar' ? 'المقبوضات (التحصيلات)' : 'Inflow (Payments)'}
               </span>
             </div>
             <div className="legend-item">
-              <span className="legend-dot" style={{ backgroundColor: '#E77C40' }}></span>
+              <span className="legend-dot" style={{ backgroundColor: orange }}></span>
               <span className="legend-label">
                 {language === 'ar' ? 'المصاريف' : 'Outflow (Expenses)'}
               </span>
             </div>
             <div className="legend-item">
-              <span className="legend-dot" style={{ backgroundColor: '#6E59DB' }}></span>
+              <span className="legend-dot" style={{ backgroundColor: purple }}></span>
               <span className="legend-label">
                 {language === 'ar' ? 'صافي الربح الشهري' : 'Net Cashflow (Line)'}
               </span>

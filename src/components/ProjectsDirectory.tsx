@@ -9,6 +9,7 @@ import {
   AlertCircle, CheckCircle, CheckCheck, Pause, XCircle
 } from 'lucide-react';
 import { UserAvatar } from './UserAvatar';
+import { colorPrimitives } from '../core';
 
 interface ProjectsDirectoryProps {
   projects: Project[];
@@ -23,13 +24,15 @@ interface ProjectsDirectoryProps {
   onOpenAddPayment?: (projectId?: string, clientId?: string) => void;
 }
 
+// Status colors follow the app theme palette, matching the dashboard status chart
+const { brand, status, paper, charcoal } = colorPrimitives;
 const STATUS_CONFIG: Record<ProjectStatus, { label: string; labelAr: string; color: string; bg: string; Icon: React.FC<{ size?: number }> }> = {
-  'Planned':        { label: 'Planned',        labelAr: 'مخطط',          color: '#6366f1', bg: '#EDE9FE', Icon: Clock },
-  'In Progress':    { label: 'In Progress',    labelAr: 'جارٍ التنفيذ', color: '#f97316', bg: '#FFF0E6', Icon: BarChart2 },
-  'Waiting Client': { label: 'Waiting Client', labelAr: 'بانتظار العميل', color: '#eab308', bg: '#FEFCE8', Icon: Pause },
-  'Completed':      { label: 'Completed',      labelAr: 'مكتمل',         color: '#22c55e', bg: '#ECFDF5', Icon: CheckCircle },
-  'Delivered':      { label: 'Delivered',      labelAr: 'تم التسليم',    color: '#0E4F2F', bg: '#E2F7EB', Icon: CheckCheck },
-  'Cancelled':      { label: 'Cancelled',      labelAr: 'ملغى',          color: '#ef4444', bg: '#FEF2F2', Icon: XCircle },
+  'Planned':        { label: 'Planned',        labelAr: 'مخطط',          color: charcoal[600], bg: paper.sidebar,      Icon: Clock },
+  'In Progress':    { label: 'In Progress',    labelAr: 'جارٍ التنفيذ', color: brand.purple,  bg: brand.purpleLight,  Icon: BarChart2 },
+  'Waiting Client': { label: 'Waiting Client', labelAr: 'بانتظار العميل', color: brand.orange,  bg: status.warningBg,   Icon: Pause },
+  'Completed':      { label: 'Completed',      labelAr: 'مكتمل',         color: status.success, bg: status.successBg, Icon: CheckCircle },
+  'Delivered':      { label: 'Delivered',      labelAr: 'تم التسليم',    color: brand.forest,  bg: '#E2F7EB',          Icon: CheckCheck },
+  'Cancelled':      { label: 'Cancelled',      labelAr: 'ملغى',          color: status.danger, bg: status.dangerBg,    Icon: XCircle },
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -432,7 +435,7 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
             const daysTag = getDaysLeftLabel(stats.daysLeft, project.status);
             const remaining = project.status === 'Cancelled' ? 0 : Math.max(0, project.price_dzd - stats.collected);
             const isCompletedOrDelivered = project.status === 'Completed' || project.status === 'Delivered';
-            const statusColor = cfg ? cfg.color : '#6366f1';
+            const statusColor = cfg ? cfg.color : charcoal[600];
             const effectiveProgress = isCompletedOrDelivered
               ? 100
               : (stats.totalTasks > 0
@@ -715,7 +718,7 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
                     <td style={{ padding: '12px 14px', minWidth: '120px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <div style={{ flex: 1, height: '5px', background: 'var(--border-color)', borderRadius: '99px', overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${effectiveProgress}%`, background: project.status === 'Delivered' ? '#0E4F2F' : effectiveProgress >= 80 ? '#22c55e' : '#f97316', borderRadius: '99px' }} />
+                          <div style={{ height: '100%', width: `${effectiveProgress}%`, background: project.status === 'Delivered' ? brand.forest : effectiveProgress >= 80 ? status.success : brand.purple, borderRadius: '99px' }} />
                         </div>
                         <span style={{ fontSize: '0.72rem', fontWeight: 500, width: '32px', textAlign: 'right' }}>{effectiveProgress}%</span>
                       </div>
@@ -909,10 +912,10 @@ export const ProjectsDirectory: React.FC<ProjectsDirectoryProps> = ({
                       <div style={{ marginBottom: '12px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.78rem', fontWeight: 500 }}>
                           <span>{language === 'ar' ? 'نسبة الإنجاز' : 'Completion'}</span>
-                          <span style={{ color: selectedProject.status === 'Delivered' ? '#0E4F2F' : selProgress >= 80 ? '#22c55e' : '#f97316' }}>{selProgress}%</span>
+                          <span style={{ color: selectedProject.status === 'Delivered' ? brand.forest : selProgress >= 80 ? status.success : brand.purple }}>{selProgress}%</span>
                         </div>
                         <div style={{ height: '8px', background: 'var(--border-color)', borderRadius: '99px', overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${selProgress}%`, background: selectedProject.status === 'Delivered' ? '#0E4F2F' : selProgress >= 80 ? '#22c55e' : selProgress >= 40 ? '#f97316' : '#6366f1', borderRadius: '99px', transition: 'width 0.4s' }} />
+                          <div style={{ height: '100%', width: `${selProgress}%`, background: selectedProject.status === 'Delivered' ? brand.forest : selProgress >= 80 ? status.success : selProgress >= 40 ? brand.purple : charcoal[600], borderRadius: '99px', transition: 'width 0.4s' }} />
                         </div>
                       </div>
                     );
