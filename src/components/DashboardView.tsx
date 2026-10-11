@@ -94,7 +94,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     (p) => p.status === 'In Progress' || p.status === 'Waiting Client'
   ).length;
 
-  const monthlyExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0);
+  // Only expenses dated in the current calendar month (same YYYY-MM bucketing as the cashflow chart)
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const monthlyExpenses = expenses
+    .filter((e) => (e.expense_date || e.created_at || '').slice(0, 7) === currentMonthKey)
+    .reduce((acc, curr) => acc + curr.amount, 0);
 
   // Total pending receivables / outstanding client balances (sum of project remaining balances / reste)
   const pendingPayments = projects
@@ -439,7 +444,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </span>
             <h3 className="kpi-main-number">{formatCurrency(monthlyExpenses)}</h3>
             <p className="kpi-description-sub">
-              {language === 'ar' ? 'إجمالي تكاليف هذا الشهر' : 'Total business expenses'}
+              {language === 'ar' ? 'إجمالي تكاليف هذا الشهر' : 'Total spent this month'}
             </p>
           </div>
         </div>
