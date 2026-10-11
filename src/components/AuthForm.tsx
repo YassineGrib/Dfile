@@ -56,7 +56,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onLoginSuccess }) => {
 
     if (isFirebaseConfigured) {
       if (formState === 'login') {
-        const { error } = await authService.signIn(email, password, language as 'en' | 'ar');
+        const { error } = await authService.signIn(email, password, language as 'en' | 'ar', rememberMe);
         setIsLoading(false);
         if (error) {
           setAlert({ message: error, type: 'error' });
@@ -109,7 +109,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onLoginSuccess }) => {
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
-    const { error } = await authService.signInWithGoogle(language as 'en' | 'ar');
+    const { error } = await authService.signInWithGoogle(language as 'en' | 'ar', rememberMe);
     setIsLoading(false);
     if (error) {
       setAlert({ message: error, type: 'error' });

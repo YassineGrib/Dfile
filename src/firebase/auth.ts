@@ -9,6 +9,9 @@ import {
   updatePassword as firebaseUpdatePassword,
   EmailAuthProvider,
   reauthenticateWithCredential,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
   type User,
   type AuthError
 } from 'firebase/auth';
@@ -50,12 +53,22 @@ function formatAuthError(err: unknown, language: 'en' | 'ar' = 'en'): string {
   }
 }
 
+/**
+ * "Remember me" on: the session survives closing the app (local persistence).
+ * Off: the session ends when the window closes (session persistence).
+ */
+async function applyRememberMe(remember: boolean) {
+  if (!auth) return;
+  await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
+}
+
 export const authService = {
-  signIn: async (email: string, pass: string, lang: 'en' | 'ar' = 'en') => {
+  signIn: async (email: string, pass: string, lang: 'en' | 'ar' = 'en', remember = true) => {
     if (!isFirebaseConfigured || !auth) {
       return { user: { email, uid: 'mock_uid' } as unknown as User, error: null };
     }
     try {
+      await applyRememberMe(remember);
       const res = await signInWithEmailAndPassword(auth, email, pass);
       return { user: res.user, error: null };
     } catch (err: unknown) {
@@ -82,11 +95,12 @@ export const authService = {
     }
   },
 
-  signInWithGoogle: async (lang: 'en' | 'ar' = 'en') => {
+  signInWithGoogle: async (lang: 'en' | 'ar' = 'en', remember = true) => {
     if (!isFirebaseConfigured || !auth) {
       return { user: { email: 'demo@decabyte.space', displayName: 'Demo User', uid: 'mock_google_uid' } as unknown as User, error: null };
     }
     try {
+      await applyRememberMe(remember);
       const res = await signInWithPopup(auth, googleProvider);
       return { user: res.user, error: null };
     } catch (err: unknown) {
